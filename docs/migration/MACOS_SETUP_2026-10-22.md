@@ -30,7 +30,19 @@ open ios/Runner.xcworkspace
 
 - `flutter doctor -v` 的 Xcode 项通过，识别 CocoaPods 1.17.0。
 - `dart analyze` 无 error/warning，17 条已有 info 级风格提示，未在环境迁移中修改业务代码。
-- 本机无可用 Apple 代码签名证书。真机签名需在 Xcode Settings → Accounts 登录所属开发者账户并下载/创建相应证书和描述文件；不得运行仅供一次性 GitHub runner 的 `prepare_ios_signing.py` 修改本机钥匙串。
+- 已通过 Xcode 账户完成 Apple Development 证书配置。Runner 的 Debug/Profile/Release 使用公司团队 `239E9W6PEN` 自动签名；未运行仅供一次性 GitHub runner 的 `prepare_ios_signing.py`。
 - Android SDK 和 Chrome 尚未安装；本次配置范围为 iOS/Xcode。Flutter 会提示未来版本停止 Intel Mac 支持，当前项目固定版本仍可运行。
-- `pod install` 成功。首次模拟器构建已生成应用主体，但 ibtool/actool 等待 CoreSimulator 辅助工具连接，尚未验证完整构建成功；已重启用户 CoreSimulator 服务并重试。重试日志 `/tmp/kingclub-ios-retry.log`，依赖和构建缓存保留。
+- `pod install` 成功。模拟器构建重试通过，产物 `build/ios/iphonesimulator/Runner.app`。Simulator 窗口黑屏经切换集成显卡并重启后由用户确认恢复；GPU 策略为 `com.apple.CoreSimulator / FramebufferServerGPUPolicy = [lowPower]`。
 - 仓库内容检查发现基线已跟踪两张被忽略的 party-commerce 截图（01-eat-play-design.png、02-merchant-design.png），本次未修改这些历史附件。
+
+## iPhone 真机调试
+
+用户已连接 iPhone 16 Pro，信任配对、开发者模式和开发者磁盘映像均已就绪。真机签名构建通过，调试包已安装；沿用 `com.lingmei.kingclub` 覆盖安装，不卸载或清除应用数据。
+
+```sh
+cd ~/Projects/KINGCLUB-APP-V2
+flutter run -d 00008140-000C44542E29801C --debug --no-pub \
+  --dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn
+```
+
+首次手工 xcodebuild 出现 Flutter 模块未就绪，补齐真机引擎后完整 Flutter 构建成功。若后续手工构建再次缺少引擎框架，先用 `flutter build ios --debug --no-codesign` 完成准备，再使用自动签名运行。Debug 包使用 pubspec 当前版本 1.0.0+1；它是本机调试包，不代表新的商店发布版本。
