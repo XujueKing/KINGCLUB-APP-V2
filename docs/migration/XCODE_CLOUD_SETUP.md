@@ -2,9 +2,9 @@
 
 ## 当前状态（2026-10-22）
 
-用户要求继续在 Windows 开发 Flutter/Android，iOS 迁移至 Apple Xcode Cloud，减少对 GitHub Actions macOS 额度的依赖。仓库已增加 Xcode Cloud post-clone hook；云端工作流尚未激活，不能将脚本准备完成当作云端首构建通过。
+用户要求继续在 Windows 开发 Flutter/Android，iOS 迁移至 Apple Xcode Cloud，减少对 GitHub Actions macOS 额度的依赖。仓库已增加 Xcode Cloud post-clone hook，并已完成 Apple/GitHub 首次接入。工作流 `iOS TestFlight` 已激活；首次真实云端构建 #200 已于 2026-10-22 10:18（上海时间）手动提交，尚未完成，不能将配置完成当作云端首构建通过。
 
-通过 App Store Connect API 核实：应用 ID `6745736540`，显示名 KINGBAR，bundle ID `com.lingmei.kingclub`；公司团队 `239E9W6PEN`。当前未创建 ciProduct，GitHub provider 已存在但未返回可用仓库。该 API 可管理已创建产品的工作流，首次产品接入需从 Xcode 完成。
+通过 App Store Connect API 核实：应用 ID `6745736540`，显示名 KINGBAR，bundle ID `com.lingmei.kingclub`；公司团队 `239E9W6PEN`。ciProduct 为 `5420A5FE-2D74-4869-BA7D-C1794832C49A`，工作流为 `3E1762BB-3FDF-43D0-9365-A935254409C2`。GitHub Xcode Cloud App 仅授权 `XujueKing/KINGCLUB-APP-V2`；首次接入由 Xcode 完成，后续构建可通过 App Store Connect 网页/API 操作。
 
 Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完不结转；这是会员包含额度，不代表已核实本团队当月剩余额度。不要自动订阅付费计划。
 
@@ -16,20 +16,20 @@ Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完
 
 ## 首次接入设置
 
-已通过 GitHub CLI 验证本机登录为 `XujueKing`，本次配置及此前 macOS 配置已推送至 GitHub main（`aa71397d`），并通过 `ls-remote` 核对。尚未完成的是 Apple 侧首次产品/工作流接入。打开 `ios/Runner.xcworkspace`，按 Command+9 打开 Report navigator（报告导航器），选择 Cloud → Get Started；已接入产品也可从 Integrate → Create Workflow 创建：
+已通过 GitHub CLI 验证本机登录为 `XujueKing`，本次配置及此前 macOS 配置已推送至 GitHub main（`aa71397d`），并通过 `ls-remote` 核对。Apple 侧首次产品/工作流接入也已完成。新工程可按以下步骤接入：打开 `ios/Runner.xcworkspace`，按 Command+9 打开 Report navigator（报告导航器），选择 Cloud → Get Started；已接入产品也可从 Integrate → Create Workflow 创建：
 
 | 项目 | 设置 |
 | --- | --- |
 | App / 团队 | KINGBAR / com.lingmei.kingclub / 239E9W6PEN |
 | 仓库与分支 | XujueKing/KINGCLUB-APP-V2，main |
 | Workspace / Scheme | ios/Runner.xcworkspace / Runner |
-| Xcode | 稳定版 26 或以上；首次优先与本机 26.5 对齐 |
+| Xcode | 已固定 Xcode 26.6 (17F113)，云端未提供本机 26.5 |
 | Action | iOS Archive / Release |
 | Next Build Number | 200 或更大；不要从 1 开始 |
-| 触发条件 | 初期手动，确认成功后再配置 main 的 iOS/Flutter 文件变更触发 |
-| Post-action | TestFlight 内部测试；不自动提交 App Store 审核或发布 |
-| Secret 环境变量 | KINGCLUB_TENCENT_MAP_KEY，与现有 CI 使用同一个有效的 iOS 腾讯地图 key |
-| 普通环境变量 | KINGCLUB_BUILD_NAME=1.2.0；KINGCLUB_IOS_SYSTEM_CALLS=false |
+| 触发条件 | main 变更，限定 lib、ios、assets、pubspec.yaml、pubspec.lock 和裁剪补丁脚本；支持手动 |
+| Post-action | TestFlight 内部人员组（2 人）；Archive 为 INTERNAL_ONLY，不自动提交 App Store 审核或发布 |
+| Secret 环境变量 | KINGCLUB_TENCENT_MAP_KEY，已从原 maps/tencent.json 作为共享 Secret 关联本工作流 |
+| 普通环境变量 | 未覆盖时脚本默认 KINGCLUB_BUILD_NAME=1.2.0、KINGCLUB_IOS_SYSTEM_CALLS=false |
 
 首次需在 Apple/Xcode 界面授权 GitHub 仓库访问；保留现有 GitHub Actions 与证书，不撤销原 CI 签名身份。Xcode Cloud 自动签名不需要把旧 .p12 再上传给 Apple。
 
@@ -49,3 +49,7 @@ Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完
 2026-10-22 已在独立本地副本以测试地图参数、构建号 200 完整运行 post-clone hook，Flutter Release 配置与 `pod install --deployment` 成功；四项配置测试和脚本语法检查通过。Pod 命令必须在 `ios` 工作目录执行，保证 Flutter Swift Package Manager 插件路径解析正确。仓库内容门禁仍被基线中两个已跟踪的 party-commerce 设计 PNG 命中，未删除这些现有设计资料。
 
 参考：[Apple Xcode Cloud 额度](https://developer.apple.com/xcode-cloud/get-started/)、[Flutter Xcode Cloud 指南](https://docs.flutter.dev/deployment/cd)、[Apple 自定义构建脚本](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts)。
+
+## 云端运行记录
+
+首次构建：#200，run ID `28190bac-f975-475f-9f60-54cf9dab1c6f`。已关闭 clean 模式以恢复缓存。Xcode 本地编辑器保存地图 Secret 报 invalid value，改由 App Store Connect 网页创建共享 Secret 并关联工作流，网页确认值已遮蔽。后续优先在网页管理环境变量。
