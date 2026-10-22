@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 迁移交接包
 
+## 2026-10-22 Windows / Xcode Cloud 接续（优先于下方历史环境状态）
+
+先读 [Windows Codex 交接](WINDOWS_CODEX_HANDOFF_2026-10-22.md) 与 [云构建配置](XCODE_CLOUD_SETUP.md)。Windows 开发、main 推送触发 iOS 云构建已接通；1.2.0 (201) 云端归档上传成功，出口合规问卷按标准算法及不在法国分发完成，后台 IN_BETA_TESTING，手机实际安装待验收。勿重建工作流、复用旧构建号或把旧的本地目录/未接入状态当成当前状态。
+
 **2026-09-09 当前迁移评审**：[产品与迁移评审包](../product/2026-09-09-native-product-review/README.md)已核对本机五份资料及用户新要求。混包只将 k_/K_ 表作为 KING CLUB 业务来源，通过 s_interface 酒吧分类与依赖交叉核对；不导入整库。下方 Poplar 路径、505d222 与早期 personId/多库方向属于历史，当前基线见新包。当前只交付文档待检阅，不执行迁移。
 
 更新时间：2026-08-24  

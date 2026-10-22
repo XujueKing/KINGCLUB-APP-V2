@@ -2,7 +2,7 @@
 
 ## 当前状态（2026-10-22）
 
-用户要求继续在 Windows 开发 Flutter/Android，iOS 迁移至 Apple Xcode Cloud，减少对 GitHub Actions macOS 额度的依赖。仓库已增加 Xcode Cloud post-clone hook，并已完成 Apple/GitHub 首次接入。工作流 `iOS TestFlight` 已激活；首次真实云端构建 #200 已于 2026-10-22 10:18（上海时间）手动提交，尚未完成，不能将配置完成当作云端首构建通过。
+用户要求继续在 Windows 开发 Flutter/Android，iOS 迁移至 Apple Xcode Cloud，减少对 GitHub Actions macOS 额度的依赖。仓库已增加 Xcode Cloud post-clone hook，并已完成 Apple/GitHub 首次接入。工作流 `iOS TestFlight` 已激活；首次真实云端构建 #200 因团队变量格式校验失败；修复已推送，自动触发 #201，初始化脚本、依赖解析、工程检查及归档已通过，已上传 Apple；本版出口合规问卷已保存，TestFlight 已达到 IN_BETA_TESTING，手机实际安装验收尚未完成。
 
 通过 App Store Connect API 核实：应用 ID `6745736540`，显示名 KINGBAR，bundle ID `com.lingmei.kingclub`；公司团队 `239E9W6PEN`。ciProduct 为 `5420A5FE-2D74-4869-BA7D-C1794832C49A`，工作流为 `3E1762BB-3FDF-43D0-9365-A935254409C2`。GitHub Xcode Cloud App 仅授权 `XujueKing/KINGCLUB-APP-V2`；首次接入由 Xcode 完成，后续构建可通过 App Store Connect 网页/API 操作。
 
@@ -12,7 +12,7 @@ Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完
 
 `ios/ci_scripts/ci_post_clone.sh` 在 Apple 克隆仓库后运行，固定 Flutter 3.47.1/6655482ec06e547f90abf8ae7590466f4415978d，解析锁定依赖、应用既有 iOS 26 裁剪补丁、生成 Release 构建配置并安装锁定 Pods。最后由 Xcode Cloud 自身执行 Archive、托管签名和 TestFlight 交付；脚本不调用 `flutter build ipa` 二次归档，也不导入任何 .p12 或上传 API 私钥。
 
-`configure_cloud_build.py` 在开始下载前校验版本、团队、构建号和地图参数。参数文件只写入临时目录且权限 600，脚本不输出地图 key。默认接口必须保留 `/kingclub-v2`，经营接口显式使用 `/commerce`。
+`configure_cloud_build.py` 在开始下载前校验版本、云端产品/Bundle ID、构建号和地图参数。参数文件只写入临时目录且权限 600，脚本不输出地图 key。默认接口必须保留 `/kingclub-v2`，经营接口显式使用 `/commerce`。
 
 ## 首次接入设置
 
@@ -46,10 +46,18 @@ Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完
 
 脚本语法、配置校验与本地 hook 演练不能代替 Apple 云端首构建。最终需核实一次真实云端构建、TestFlight 可安装和真实业务页面；只有这些完成后才标记云端交付可用。
 
-2026-10-22 已在独立本地副本以测试地图参数、构建号 200 完整运行 post-clone hook，Flutter Release 配置与 `pod install --deployment` 成功；四项配置测试和脚本语法检查通过。Pod 命令必须在 `ios` 工作目录执行，保证 Flutter Swift Package Manager 插件路径解析正确。仓库内容门禁仍被基线中两个已跟踪的 party-commerce 设计 PNG 命中，未删除这些现有设计资料。
+2026-10-22 已在独立本地副本以测试地图参数、构建号 200 完整运行 post-clone hook，Flutter Release 配置与 `pod install --deployment` 成功；配置测试（修复后共五项）和脚本语法检查通过。Pod 命令必须在 `ios` 工作目录执行，保证 Flutter Swift Package Manager 插件路径解析正确。仓库内容门禁仍被基线中两个已跟踪的 party-commerce 设计 PNG 命中，未删除这些现有设计资料。
 
 参考：[Apple Xcode Cloud 额度](https://developer.apple.com/xcode-cloud/get-started/)、[Flutter Xcode Cloud 指南](https://docs.flutter.dev/deployment/cd)、[Apple 自定义构建脚本](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts)。
 
 ## 云端运行记录
 
 首次构建：#200，run ID `28190bac-f975-475f-9f60-54cf9dab1c6f`。已关闭 clean 模式以恢复缓存。Xcode 本地编辑器保存地图 Secret 报 invalid value，改由 App Store Connect 网页创建共享 Secret 并关联工作流，网页确认值已遮蔽。后续优先在网页管理环境变量。
+
+#201：run ID `d2f0fa7b-083d-4d2c-be4a-a9f2907eee3c`，由 `7b316539` 推送自动触发。#200 日志只报 `CI_TEAM_ID` 校验拒绝，后续生成包缺失是该提前退出的结果；改为核验已接入产品 ID 与 Bundle ID，不假设云端团队变量与本地 DEVELOPMENT_TEAM 同格式。#201 post-clone 用时约 2 分 18 秒并通过，依赖和工程检查通过，归档已于约 10:32（上海时间）确认 SUCCEEDED。
+
+Apple 构建记录：`1.2.0 (201)` / build ID `aaae0126-b812-4649-9076-33642b79a1c3`，processingState=VALID，buildAudienceType=INTERNAL_ONLY。最初 internalBuildState=MISSING_EXPORT_COMPLIANCE。随后用户确认可不在法国发布，依据标准 AES-GCM 实现，在 Apple 问卷选择“Apple 操作系统之外的标准算法”及“不在法国分发”并保存；Apple 返回 usesNonExemptEncryption=false、IN_BETA_TESTING。FRA.available=false 已通过 API 核实，法国原本即不可售，未修改可售地区。未改 Info.plist 的相关声明，手机实际安装尚待验收。
+
+Windows 恢复开发时先在原 main 工作目录检查并保留未提交修改，再 `git pull origin main`。Dart、资源或 iOS 配置变更推送后自动触发 Xcode Cloud；Android 专属和普通文档变更不触发。需要正式 App Store 包时，另将 Archive 的分发准备从 Internal Testing Only 改为 App Store Connect；当前内部包不能直接用于商店发布。
+
+Windows 接手请优先阅读 [2026-10-22 交接文档](WINDOWS_CODEX_HANDOFF_2026-10-22.md)，包含资源 ID、认证与路径区别、加密问卷实际答案及待验收事项。
