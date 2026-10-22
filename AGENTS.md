@@ -1,5 +1,10 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-10-22 macOS 真机服务入口核验
+
+真机排查确认 `https://api.wuyexin.cn` 根入口的 KINGCLUB K107 返回 Interface not found，旧会员会话读取返回 401；`https://api.wuyexin.cn/kingclub-v2` 的 K107 加密调用通过。APP 调试参数必须保留 `/kingclub-v2`，经营服务显式设置 `KINGCLUB_COMMERCE_API_BASE_URL=https://api.wuyexin.cn/commerce`，不要自动拼接成 `/kingclub-v2/commerce`。此项以实际请求核验纠正下方历史根入口说明，不涉及服务端或数据库变更。
+
+
 ## 2026-10-10 本店商品上下架
 
 用户确认店长可手机提交上下架、超级管理员手机审批或直接操作。设置增加“商品上架”入口，复用 K261007002032 和现有会员会话/员工门店授权，审批依据服务端可信配置，不接受客户端自报超级管理员。此入口仅商品上下架，不代表销售包装和套餐编辑已经实现；详见 docs/features/commerce/feature_product_listing/README.md。手机安装与聊天开发仍由当前负责会话协调，不能覆盖其未提交改动。

@@ -24,7 +24,7 @@ flutter build ios --simulator --debug
 open ios/Runner.xcworkspace
 ```
 
-直接构建/运行默认使用项目现有 Mock 配置。需要联调真实服务时，显式传入 `--dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn`，并沿用相应功能需要的其他构建参数。不要将历史 CI 的 test 域名视为当前入口。
+直接构建/运行默认使用项目现有 Mock 配置。需要联调真实服务时，显式传入 `--dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn/kingclub-v2`，并沿用相应功能需要的其他构建参数。不要将历史 CI 的 test 域名视为当前入口。
 
 ## 验证与限制
 
@@ -42,7 +42,12 @@ open ios/Runner.xcworkspace
 ```sh
 cd ~/Projects/KINGCLUB-APP-V2
 flutter run -d 00008140-000C44542E29801C --debug --no-pub \
-  --dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn
+  --dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn/kingclub-v2 \
+  --dart-define=KINGCLUB_COMMERCE_API_BASE_URL=https://api.wuyexin.cn/commerce
 ```
 
 首次手工 xcodebuild 出现 Flutter 模块未就绪，补齐真机引擎后完整 Flutter 构建成功。若后续手工构建再次缺少引擎框架，先用 `flutter build ios --debug --no-codesign` 完成准备，再使用自动签名运行。Debug 包使用 pubspec 当前版本 1.0.0+1；它是本机调试包，不代表新的商店发布版本。
+
+真机“我的”页空白排查：API 根路径的 K107 返回 Interface not found，读取会话接口返回 401；`/kingclub-v2` 的 K107 加密调用通过。因此真机调试须保留该业务前缀，经营服务则显式使用 `/commerce`，不能由业务前缀自动拼成 `/kingclub-v2/commerce`。原迁移文档的根路径运行参数已纠正。
+
+修正参数重新安装后，真机 K 接口返回 HTTP 200；调试器确认 `_MyProfilePageState._profile` 已加载且 `_profileError` 为 null。无需清除会话或重新注册。Flutter 原生设备截图命令不支持该 iPhone，但可通过 VM Service 的 `ext.flutter.inspector.screenshot` 获取 App 渲染内容。
