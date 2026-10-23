@@ -84,6 +84,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     _state = widget.initialState;
     WidgetsBinding.instance.addObserver(this);
+    HomeCitySession.manualCity.addListener(_manualCityChanged);
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted) return;
       _contentEpoch++;
@@ -95,7 +96,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _selectedCity = null;
         _citySelected = false;
       });
-      unawaited(_loadContent());
+      unawaited(_loadCityCatalog());
     });
     unawaited(_loadCityCatalog());
     if (_state == HomeDemoState.sessionInvalid) {
@@ -103,12 +104,32 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  void _manualCityChanged() {
+    final selected = HomeCitySession.manualCity.value;
+    if (!mounted || selected == null) return;
+    setState(() {
+      _citySelected = true;
+      _pendingCitySource = 'manual';
+      _selectedCity = selected;
+      _city = selected.shortName;
+    });
+    unawaited(_loadContent(clear: true));
+  }
+
   Future<void> _loadCityCatalog() async {
     final catalog = await HomeCityCatalog.load();
+    final history = await const HomeCityHistory().read();
     if (!mounted) return;
+    final manual =
+        HomeCitySession.manualCity.value ??
+        (history.isEmpty ? null : catalog.byCode[history.first]);
     setState(() {
       _cityCatalog = catalog;
-      _selectedCity = catalog.namedCity(_city);
+      _selectedCity = manual ?? catalog.namedCity(_city);
+      if (manual != null) {
+        _citySelected = true;
+        _pendingCitySource = 'manual';
+      }
       HomeCitySession.current = _selectedCity;
       _city = _selectedCity?.name ?? _city;
     });
@@ -180,7 +201,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         setState(() {
           _content = result.items;
           _pendingCitySource = null;
-          _citySelected = result.manual;
+          _citySelected = _citySelected || result.manual;
           _selectedCity = _cityCatalog?.byCode[result.cityCode];
           _city = _selectedCity?.shortName;
           HomeCitySession.current = _selectedCity;
@@ -250,10 +271,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _citySelected = true;
       _pendingCitySource = 'manual';
       _selectedCity = selected;
-      HomeCitySession.current = selected;
       _city = selected.shortName;
     });
-    unawaited(_loadContent(clear: true));
+    HomeCitySession.select(selected);
   }
 
   @override
@@ -283,6 +303,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    HomeCitySession.manualCity.removeListener(_manualCityChanged);
     _contentEpoch++;
     _cityEpoch++;
     _actionTimer?.cancel();

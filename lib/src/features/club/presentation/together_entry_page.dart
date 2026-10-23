@@ -56,7 +56,10 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
   @override
   void initState() {
     super.initState();
-    city = widget.initialCity ?? HomeCitySession.current;
+    city =
+        HomeCitySession.manualCity.value ??
+        widget.initialCity ??
+        HomeCitySession.current;
     loading = city == null;
     sessionChanges = SecureSessionStore.changes.stream.listen((_) {
       if (mounted) setState(() => revision++);
@@ -103,6 +106,7 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
         ),
       );
       if (mounted && selected != null) {
+        HomeCitySession.select(selected);
         setState(() {
           city = selected;
           error = null;

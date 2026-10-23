@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,6 +10,13 @@ import 'package:lpinyin/lpinyin.dart';
 /// Current city selected/resolved on the home screen; shared with application flows.
 abstract final class HomeCitySession {
   static HomeCity? current;
+  static final manualCity = ValueNotifier<HomeCity?>(null);
+
+  static void select(HomeCity city) {
+    current = city;
+    manualCity.value = city;
+    unawaited(const HomeCityHistory().remember(city.code));
+  }
 }
 
 class HomeCity {

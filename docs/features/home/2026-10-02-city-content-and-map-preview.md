@@ -70,3 +70,7 @@ GitHub run 37002409041 built revision 140db6bea5519bc448b11cdd7bdb897d7a79ae4a s
 ## 2026-10-02 Stretch artwork beyond full reveal
 
 User requested continued downward dragging to enlarge the image instead of exposing empty background between artwork and content. The image/video scales uniformly from top center only when panel top exceeds natural image height. It follows the same sheet extent during release restoration, with no separate lagging animation. Close and video controls remain outside the scaling layer. Tests use actual phone logical dimensions and verify equal X/Y scaling, image bottom meeting panel top, scale restoring to 1, and released-fling rebound. Targeted widget tests and analysis pass. Not yet installed on iPhone.
+
+## 2026-10-23 手动城市优先修正（用户确认）
+
+首页与 AA 邀请共享手动城市；从已有本地手动选择历史恢复最近城市后再请求内容和定位。手动选择持续有效，定位仍可上报所在城市但不得更改浏览城市。跨页面选择需立即通知首页，旧内容请求不能覆盖新选择；服务端请求继续使用现有 feed 的 manual 来源，无新增接口。验收覆盖重建页面、延迟定位及旧请求竞态。

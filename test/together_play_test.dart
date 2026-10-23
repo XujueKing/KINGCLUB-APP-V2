@@ -105,6 +105,46 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets('joined seats without photos use full gender symbols', (
+    tester,
+  ) async {
+    final party = fixture(
+      capacity: 4,
+      participants: const [
+        TogetherParticipant(
+          name: '男会员',
+          seatIndex: 0,
+          gender: TogetherGender.male,
+        ),
+        TogetherParticipant(
+          name: '女会员',
+          seatIndex: 2,
+          gender: TogetherGender.female,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TogetherParticipants(party: party)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final index in [0, 2]) {
+      final seat = find.byKey(ValueKey('seat-night-$index'));
+      final image = tester.widget<Image>(
+        find.descendant(of: seat, matching: find.byType(Image)),
+      );
+      expect(
+        (image.image as AssetImage).assetName,
+        index == 0 ? 'assets/legacy/aa/man2.png' : 'assets/legacy/aa/woman.png',
+      );
+      expect(
+        find.descendant(of: seat, matching: find.byIcon(Icons.person)),
+        findsNothing,
+      );
+    }
+  });
+
   testWidgets(
     'detail footer fits the real full-width button theme on a phone',
     (tester) async {

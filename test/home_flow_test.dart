@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/home/presentation/home_page.dart';
 import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
@@ -14,6 +15,11 @@ import 'home_content_repository_test.dart'
 
 void main() {
   setUpAll(() async => HomeCityCatalog.load());
+  setUp(() {
+    HomeCitySession.current = null;
+    HomeCitySession.manualCity.value = null;
+    FlutterSecureStorage.setMockInitialValues({});
+  });
   Finder semanticsLabel(String label) => find.byWidgetPredicate(
     (widget) => widget is Semantics && widget.properties.label == label,
   );
@@ -92,6 +98,50 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('saved manual city survives restart and Shanghai location', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({
+      'kingclub.home.city-history.v1': '["430200"]',
+    });
+    await tester.pumpWidget(home(locateCity: () async => '上海市'));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(HomeCitySession.current?.code, '430200');
+    expect(find.text('上海市'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    HomeCitySession.current = null;
+    HomeCitySession.manualCity.value = null;
+    await tester.pumpWidget(home(locateCity: () async => '上海市'));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(HomeCitySession.current?.code, '430200');
+  });
+
+  testWidgets('AA manual choice updates home before late location', (
+    tester,
+  ) async {
+    final location = Completer<String?>();
+    await tester.pumpWidget(home(locateCity: () => location.future));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    HomeCitySession.select(
+      const HomeCity(
+        code: '430200',
+        name: '株洲市',
+        shortName: '株洲',
+        pinyin: 'zhuzhou',
+      ),
+    );
+    await tester.pump();
+    location.complete('上海市');
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(HomeCitySession.current?.code, '430200');
+    expect(find.text('株洲'), findsOneWidget);
+    expect(find.text('上海市'), findsNothing);
+  });
 
   testWidgets('city initially uses the actual located city', (tester) async {
     await tester.pumpWidget(home(locateCity: () async => '株洲市'));
@@ -210,17 +260,17 @@ void main() {
     expect(find.text('L-0 EXP:50'), findsOneWidget);
     expect(find.text('50'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
-    expect(find.text('加入派对'), findsOneWidget);
-    expect(find.text('创建派对'), findsOneWidget);
+    expect(find.text('AA邀请'), findsOneWidget);
+    expect(find.text('吃喝玩乐'), findsOneWidget);
     expect(find.text('SCAN QR'), findsOneWidget);
     expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
     expect(semanticsLabel('AI 卡颜局'), findsOneWidget);
 
-    await tester.tap(find.text('加入派对'));
-    await tester.tap(find.text('加入派对'));
+    await tester.tap(find.text('AA邀请'));
+    await tester.tap(find.text('AA邀请'));
     await tester.pump(const Duration(milliseconds: 310));
-    await tester.tap(find.text('创建派对'));
-    await tester.tap(find.text('创建派对'));
+    await tester.tap(find.text('吃喝玩乐'));
+    await tester.tap(find.text('吃喝玩乐'));
     await tester.pump(const Duration(milliseconds: 310));
     await tester.tap(find.text('SCAN QR'));
     await tester.tap(find.text('SCAN QR'));
@@ -248,8 +298,8 @@ void main() {
     expect(tester.getTopLeft(together).dy, tester.getTopLeft(scan).dy);
     expect(tester.getBottomRight(together).dy, tester.getBottomRight(scan).dy);
 
-    final chinese = tester.widget<Text>(find.text('加入派对'));
-    final english = tester.widget<Text>(find.text('JOIN PARTY'));
+    final chinese = tester.widget<Text>(find.text('AA邀请'));
+    final english = tester.widget<Text>(find.text('AA INVITATIONS'));
     expect(chinese.style?.fontSize, closeTo(38 * scale, .01));
     expect(chinese.style?.fontWeight, FontWeight.w600);
     expect(english.style?.fontSize, closeTo(20 * scale, .01));
@@ -415,7 +465,7 @@ void main() {
       closeTo(20 * 393 / 750, .1),
     );
     expect((shadow.decoration! as BoxDecoration).boxShadow, isNotEmpty);
-    expect(find.text('加入派对'), findsOneWidget);
+    expect(find.text('AA邀请'), findsOneWidget);
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -240));
     await tester.pumpAndSettle();
@@ -444,12 +494,12 @@ void main() {
     await tester.pumpWidget(home(state: HomeDemoState.initialLoading));
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsWidgets);
-    expect(find.text('加入派对'), findsOneWidget);
+    expect(find.text('AA邀请'), findsOneWidget);
 
     await tester.pumpWidget(home(state: HomeDemoState.emptyPromotion));
     await tester.pump();
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsOneWidget);
-    expect(find.text('加入派对'), findsOneWidget);
+    expect(find.text('AA邀请'), findsOneWidget);
     await tester.tap(find.text('重试'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsNothing);
@@ -484,7 +534,7 @@ void main() {
     expect(find.text('首页暂时无法显示'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('home-fatal-retry')));
     await tester.pump();
-    expect(find.text('加入派对'), findsOneWidget);
+    expect(find.text('AA邀请'), findsOneWidget);
   });
 
   testWidgets('refresh keeps content and session invalid resets safely', (
@@ -617,8 +667,8 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(home(textScale: 2, disableAnimations: true));
       await tester.pump();
-      expect(find.text('加入派对'), findsOneWidget);
-      expect(find.text('创建派对'), findsOneWidget);
+      expect(find.text('AA邀请'), findsOneWidget);
+      expect(find.text('吃喝玩乐'), findsOneWidget);
       expect(find.text('SCAN QR'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

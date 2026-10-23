@@ -968,25 +968,7 @@ class TogetherParticipants extends StatelessWidget {
                                     fit: BoxFit.contain,
                                   ),
                           );
-                          final fallback = member == null
-                              ? genderIcon
-                              : Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Icon(
-                                      Icons.person,
-                                      size: slotSize * .78,
-                                      color: const Color(0xFF8A687F),
-                                    ),
-                                    Positioned(
-                                      right: 1,
-                                      bottom: 1,
-                                      width: slotSize * .38,
-                                      height: slotSize * .38,
-                                      child: genderIcon,
-                                    ),
-                                  ],
-                                );
+                          final fallback = genderIcon;
                           final avatar = member?.avatar;
                           return Padding(
                             padding: EdgeInsets.only(
