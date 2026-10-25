@@ -2179,3 +2179,12 @@ Implementation: aa206-aa.png，OPPO R11st 1080×2160；与原图同工具结果�
 - 26项定向测试通过，包含小屏/字体放大/头像横滚以及两种底栏选择；静态分析通过。
 - AA款无待修复P0/P1/P2：final result: passed（仅AA款安卓实机）。
 - 商家款组件几何捕获已检查，尚无服务端标注publisherType的真实活动，测试截图字体也不能代替真机字体；商家款实机视觉核对final result: blocked。用户已明确告知限制，不宣称两款均已真机验收。
+
+
+# 2026-10-26 第三轮iPhone同尺寸复核
+
+本轮基线：App Store a80005091b60166453223a4ef7753750.jpg；旧版APP 3ce0121f1ac7e3d49f6950054e1f1709.jpg，均1206×2622。用户指出前轮结构接近仍不符合要求，因此此前passed不代表本轮iPhone等比例验收。
+
+发现P2：卡片左右约16dp而非20dp；主标题36dp而非约28dp；主题字体未明确使用Cupertino系统Display；头像露半个第六项。已按同尺寸测量修正，新增几何断言，27项测试通过。安卓207截图aa207-final.png确认缩小字号及完整五头像。iOS专用字体已用本地Flutter Cupertino默认字体定义核实，但不能以Android或widget字体截图替代iPhone视觉证据。
+
+final result: blocked（等待Xcode Cloud206与iPhone安装后新截图）。
