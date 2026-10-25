@@ -859,10 +859,14 @@ class TogetherAvailableRow extends StatelessWidget {
                                       ),
                                       SizedBox(height: 8 * scale),
                                       Text(
-                                        togetherCardTimeRange(party),
+                                        party.description.trim().isEmpty
+                                            ? party.place
+                                            : party.description.trim(),
                                         key: ValueKey(
-                                          'together-invitation-time-${party.ref}',
+                                          'together-editorial-subtitle-${party.ref}',
                                         ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: textStyle(
                                           13,
                                           color: ink.secondary,

@@ -554,7 +554,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey('together-invitation-time-music')),
+        find.byKey(const ValueKey('together-editorial-subtitle-music')),
         findsOneWidget,
       );
       expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsNothing);
@@ -797,7 +797,7 @@ void main() {
       find.byKey(const ValueKey('together-kicker-night')),
     );
     final subtitle = tester.widget<Text>(
-      find.byKey(const ValueKey('together-invitation-time-night')),
+      find.byKey(const ValueKey('together-editorial-subtitle-night')),
     );
     expect(kicker.style!.fontSize, closeTo(12, .1));
     expect(subtitle.style!.fontSize, closeTo(13, .1));
