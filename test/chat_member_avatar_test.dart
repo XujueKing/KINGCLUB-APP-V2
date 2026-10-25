@@ -13,7 +13,54 @@ class _LocalAvatar extends ChatAvatarSnapshot {
   };
 }
 
+class _RefreshedLocalAvatar extends ChatAvatarSnapshot {
+  int reads = 0;
+  @override
+  Future<Map<String, dynamic>?> readCached(String peer) async => ++reads == 1
+      ? null
+      : {
+          'avatar': {'fileId': 'fixture-file', 'cacheOnly': true},
+        };
+}
+
 void main() {
+  testWidgets(
+    'same-account refresh rechecks disk descriptor and sizes avatar decode',
+    (tester) async {
+      final snapshots = _RefreshedLocalAvatar();
+      Widget frame(Future<Map<String, dynamic>> profile) => MaterialApp(
+        home: ChatMemberAvatar(
+          account: 'peer',
+          profile: profile,
+          snapshots: snapshots,
+          baseUrl: 'https://test.wuyexin.cn/kingclub-v2',
+        ),
+      );
+      await tester.pumpWidget(
+        frame(
+          Future.value({
+            'avatar': {
+              'fileId': 'fixture-file',
+              'path': '/kingclub/profile-media/fixture-file',
+            },
+          }),
+        ),
+      );
+      await tester.pump();
+      final pending = Completer<Map<String, dynamic>>();
+      await tester.pumpWidget(frame(pending.future));
+      await tester.pump();
+      final image = tester.widget<CachedMediaImage>(
+        find.byType(CachedMediaImage),
+      );
+      expect(image.cacheOnly, isTrue);
+      expect(image.cacheWidth, (42 * tester.view.devicePixelRatio).ceil());
+      expect(snapshots.reads, 2);
+      pending.complete({});
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets(
     'saved avatar displays before slow profile and is removed on denial',
     (tester) async {

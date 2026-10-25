@@ -46,7 +46,8 @@ class _ChatMemberAvatarState extends State<ChatMemberAvatar> {
   void didUpdateWidget(ChatMemberAvatar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.account != widget.account ||
-        oldWidget.snapshots != widget.snapshots) {
+        oldWidget.snapshots != widget.snapshots ||
+        oldWidget.profile != widget.profile) {
       _readCached();
     }
   }
@@ -98,6 +99,8 @@ class _ChatMemberAvatarState extends State<ChatMemberAvatar> {
                 }
                 return CachedMediaImage(
                   keepSameImageOnRefresh: true,
+                  cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                      .ceil(),
                   '${baseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
                   private: true,
                   cacheOnly: cacheOnly,

@@ -22,6 +22,7 @@ class CachedMediaImage extends StatefulWidget {
     this.cache,
     this.cacheOnly = false,
     this.keepSameImageOnRefresh = false,
+    this.cacheWidth,
   });
   final String url;
   final String? contentKey;
@@ -34,6 +35,7 @@ class CachedMediaImage extends StatefulWidget {
   final MediaCache? cache;
   final bool cacheOnly;
   final bool keepSameImageOnRefresh;
+  final int? cacheWidth;
   @override
   State<CachedMediaImage> createState() => _CachedMediaImageState();
 }
@@ -125,6 +127,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
           width: widget.width,
           height: widget.height,
           fit: widget.fit,
+          cacheWidth: widget.cacheWidth,
           errorBuilder: widget.errorBuilder,
         );
       }

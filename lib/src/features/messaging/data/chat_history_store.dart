@@ -354,9 +354,11 @@ class ChatHistoryStore {
       secretKey: _key,
       aad: utf8.encode('friend-requests:$account:$started'),
     );
-    await _db.rawInsert(
-      'INSERT INTO friend_request_snapshot(id,started,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET started=excluded.started,payload=excluded.payload WHERE excluded.started>=friend_request_snapshot.started',
-      [started, box.concatenation()],
+    await _saveOrderedSnapshot(
+      'friend_request_snapshot',
+      'started',
+      started,
+      box.concatenation(),
     );
   }
 
@@ -390,9 +392,11 @@ class ChatHistoryStore {
       secretKey: _key,
       aad: utf8.encode('contact-groups:$account:$version'),
     );
-    await _db.rawInsert(
-      'INSERT INTO contact_group_snapshot(id,version,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,payload=excluded.payload WHERE excluded.version>=contact_group_snapshot.version',
-      [version, box.concatenation()],
+    await _saveOrderedSnapshot(
+      'contact_group_snapshot',
+      'version',
+      version,
+      box.concatenation(),
     );
   }
 
@@ -432,11 +436,35 @@ class ChatHistoryStore {
       secretKey: _key,
       aad: utf8.encode('contacts:$account:$started'),
     );
-    await _db.rawInsert(
-      'INSERT INTO contact_snapshot(id,started,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET started=excluded.started,payload=excluded.payload WHERE excluded.started>=contact_snapshot.started',
-      [started, box.concatenation()],
+    await _saveOrderedSnapshot(
+      'contact_snapshot',
+      'started',
+      started,
+      box.concatenation(),
     );
   }
+
+  // Android 8 ships SQLite before UPSERT (3.24). Keep the ordering decision
+  // and replacement atomic using syntax supported by all supported devices.
+  Future<void> _saveOrderedSnapshot(
+    String table,
+    String orderColumn,
+    int order,
+    List<int> payload,
+  ) => _db.transaction((txn) async {
+    final rows = await txn.query(
+      table,
+      columns: [orderColumn],
+      where: 'id = 1',
+      limit: 1,
+    );
+    if (rows.isNotEmpty && (rows.single[orderColumn] as int) > order) return;
+    await txn.insert(table, {
+      'id': 1,
+      orderColumn: order,
+      'payload': payload,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  });
 
   static Future<String> _hash(String value) async =>
       (await Sha256().hash(utf8.encode(value))).bytes

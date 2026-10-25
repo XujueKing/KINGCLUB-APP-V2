@@ -107,7 +107,7 @@ void main() {
     final inspected = await databaseFactoryFfi.openDatabase(
       '${dir.path}/contacts.db',
     );
-    expect(await inspected.getVersion(), 24);
+    expect(await inspected.getVersion(), 25);
     expect((await inspected.query('conversation')).single['cursor'], 9);
     await inspected.close();
     store = await open();
@@ -135,7 +135,7 @@ void main() {
     final checked = await databaseFactoryFfi.openDatabase(
       '${dir.path}/contacts.db',
     );
-    expect(await checked.getVersion(), 24);
+    expect(await checked.getVersion(), 25);
     expect((await checked.query('conversation')).single['cursor'], 7);
     await checked.close();
     store = await open();

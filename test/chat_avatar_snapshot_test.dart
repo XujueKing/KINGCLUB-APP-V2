@@ -192,6 +192,31 @@ void main() {
       expect(await loadingSecond, profile);
     },
   );
+  test('older successful refresh reuses newer approved avatar without flashing empty', () async {
+    final old = Completer<Map<String, dynamic>>();
+    final started = Completer<void>();
+    final loading = cache.load('a', 'peer', () {
+      started.complete();
+      return old.future;
+    });
+    await started.future;
+    final newer = <String, dynamic>{
+      'avatar': {
+        'fileId': 'image-new',
+        'path': '/kingclub/profile-media/image-new',
+      },
+    };
+    await cache.load('a', 'peer', () async => newer);
+    old.complete(profile);
+    expect(await loading, {
+      'avatar': {'fileId': 'image-new', 'cacheOnly': true},
+    });
+    expect((await cache.readCached('peer'))?['avatar'], {
+      'fileId': 'image-new',
+      'cacheOnly': true,
+    });
+  });
+
   test(
     'a newer denial still defeats a late older successful response',
     () async {

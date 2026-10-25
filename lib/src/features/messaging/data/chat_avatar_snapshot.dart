@@ -91,6 +91,16 @@ class ChatAvatarSnapshot {
       return (_settled[key] ?? 0) <= revision && same(current);
     }
 
+    Future<Map<String, dynamic>> latestApproved() async {
+      // Another page may already have completed a newer authorized refresh.
+      // Reuse only that decision's descriptor, never the older response.
+      if ((_settled[key] ?? 0) > revision && same(await _session())) {
+        final cached = await readCached(peer);
+        if (cached != null && same(await _session())) return cached;
+      }
+      throw const AuthFailure('SESSION_CHANGED', '登录状态或头像访问权限已变化');
+    }
+
     Future<void> save(String? id) async {
       final write = (_writes[key] ?? Future<void>.value()).then((_) async {
         if (!await active()) return;
@@ -113,9 +123,7 @@ class ChatAvatarSnapshot {
 
     try {
       final profile = await fetch();
-      if (!await active()) {
-        throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
-      }
+      if (!await active()) return await latestApproved();
       _settled[key] = revision;
       final avatar = profile['avatar'];
       final id = avatar is Map ? avatar['fileId'] : null;
@@ -133,12 +141,10 @@ class ChatAvatarSnapshot {
                     !path.contains('?') &&
                     !path.contains('#'));
       await save(valid ? id : null);
-      if (!await active()) {
-        throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
-      }
+      if (!await active()) return await latestApproved();
       return profile;
     } on AuthFailure catch (error) {
-      if (!await active()) rethrow;
+      if (!await active()) return await latestApproved();
       if (error.code != 'NETWORK_ERROR') {
         _settled[key] = revision;
         await save(null);
