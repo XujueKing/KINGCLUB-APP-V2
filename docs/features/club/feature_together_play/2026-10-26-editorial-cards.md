@@ -39,3 +39,10 @@
 - 服务端只读核对：当前三条测试记录的catalog结果没有publisherType字段；不根据店名/海报推断官方、不擅自把普通活动改为官方。商家统筹样式按已存在模型merchantHost选择，但真实目录尚无可核对该款的记录。
 - 商家款真实组件渲染捕获aa206-merchant-component.png（393×852逻辑像素，2倍导出）已检查缩略图/两行文字/右胶囊几何；测试环境按钮字形为测试字体方框，不能作为安卓或iOS字形验收证据。无新预览路由、无模拟APP页面；临时截图测试已移除。
 - 本轮只在安卓真机检查AA款；商家款真实数据接入及iOS/鸿蒙安装验收仍未完成。
+
+
+### iPhone交付准备（2026-10-26）
+
+Xcode Cloud run 79e83040-eb7f-4296-abfc-46888dfe0d37 对应源提交7e0740e7，Archive成功；iOS build205（fe0e6803-f6fc-4332-a109-cde3cc97d3fb）处理VALID。与已确认202版相比仅媒体缓存/聊天兼容及本轮卡片UI变化，加密能力未变，按既有问卷与不在法国分发条件记录usesNonExemptEncryption=false，加入既有内部组后IN_BETA_TESTING。
+
+iOS构建号205与安卓206独立编号，界面源提交相同。USB已识别用户iPhone17,1/iOS26.6.1，安装版本仍202；已启动TestFlight，等待用户点击更新，不能把可测试状态写为已安装或iPhone视觉验收。
