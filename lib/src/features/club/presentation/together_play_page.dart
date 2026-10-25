@@ -710,46 +710,61 @@ class TogetherAvailableRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Padding(
-        key: ValueKey('together-heading-${party.ref}'),
-        padding: const EdgeInsets.only(bottom: 12, top: 6),
-        child: GestureDetector(
-          onTap: onTap,
-          child: Text(
-            party.theme,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              height: 1.25,
-              fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scale = (constraints.maxWidth / 353).clamp(.8, 1.15);
+      final inset = 20 * scale;
+      final poster = party.detailPosters.firstOrNull;
+      final summary = party.merchantHost;
+      TextStyle textStyle(
+        double size, {
+        Color color = Colors.white,
+        FontWeight weight = FontWeight.w400,
+        double height = 1.2,
+      }) => TextStyle(
+        fontSize: size * scale,
+        color: color,
+        fontWeight: weight,
+        height: height,
+        letterSpacing: 0,
+      );
+      Widget artwork({double? size}) {
+        final image = poster == null
+            ? const ColoredBox(color: Color(0xFF393229))
+            : poster.startsWith('assets/')
+            ? Image.asset(poster, fit: BoxFit.cover)
+            : CachedMediaImage(poster, fit: BoxFit.cover);
+        return size == null
+            ? image
+            : SizedBox.square(dimension: size, child: image);
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            key: ValueKey('together-heading-${party.ref}'),
+            padding: EdgeInsets.only(bottom: 12 * scale, top: 6),
+            child: GestureDetector(
+              onTap: onTap,
+              child: Text(
+                party.theme,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: textStyle(22, weight: FontWeight.w700),
+              ),
             ),
           ),
-        ),
-      ),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final poster = party.detailPosters.firstOrNull;
-            return Material(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(22 * scale),
+            child: Material(
               color: const Color(0xFF29251F),
               child: InkWell(
                 key: ValueKey('together-card-${party.ref}'),
                 onTap: onTap,
                 child: Stack(
                   children: [
-                    Positioned.fill(
-                      child: poster == null
-                          ? const ColoredBox(color: Color(0xFF393229))
-                          : poster.startsWith('assets/')
-                          ? Image.asset(poster, fit: BoxFit.cover)
-                          : CachedMediaImage(poster, fit: BoxFit.cover),
-                    ),
+                    Positioned.fill(child: artwork()),
                     Positioned.fill(
                       child: IgnorePointer(
                         child: DecoratedBox(
@@ -757,12 +772,12 @@ class TogetherAvailableRow extends StatelessWidget {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              stops: const [0, .35, .75, 1],
+                              stops: const [0, .4, .78, 1],
                               colors: [
                                 Colors.transparent,
                                 Colors.black.withValues(alpha: .04),
-                                Colors.black.withValues(alpha: .72),
-                                Colors.black.withValues(alpha: .45),
+                                Colors.black.withValues(alpha: .65),
+                                Colors.black.withValues(alpha: .32),
                               ],
                             ),
                           ),
@@ -773,58 +788,38 @@ class TogetherAvailableRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                          padding: EdgeInsets.fromLTRB(
+                            inset,
+                            0,
+                            inset,
+                            18 * scale,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(height: constraints.maxWidth * .52),
-                              Text(
-                                '${party.publisherLabel}发起${party.hostName.trim().isEmpty ? '' : ' · ${party.hostName}'}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
+                              SizedBox(height: constraints.maxWidth * .75),
                               Text(
                                 party.feeLabel,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 26,
-                                  height: 1.18,
-                                  fontWeight: FontWeight.w700,
+                                style: textStyle(
+                                  36,
+                                  weight: FontWeight.w700,
+                                  height: 1.12,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 10 * scale),
                               Text(
                                 togetherCardTimeRange(party),
                                 key: ValueKey(
                                   'together-invitation-time-${party.ref}',
                                 ),
-                                style: const TextStyle(
+                                style: textStyle(
+                                  14,
                                   color: Colors.white70,
-                                  fontSize: 13,
-                                  height: 1.4,
+                                  height: 1.3,
                                 ),
                               ),
-                              if (party.collaboratorHost &&
-                                  party.assignedTable != null)
-                                Text(
-                                  '位置 ${party.assignedTable}',
-                                  key: ValueKey(
-                                    'together-fixed-position-${party.ref}',
-                                  ),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    height: 1.4,
-                                  ),
-                                ),
                             ],
                           ),
                         ),
@@ -834,96 +829,89 @@ class TogetherAvailableRow extends StatelessWidget {
                             child: ColoredBox(
                               color: Colors.white.withValues(alpha: .14),
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  18,
-                                  14,
-                                  18,
-                                  16,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: inset,
+                                  vertical: 16 * scale,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        TogetherStoreLogo(
-                                          party: party,
-                                          size: 32,
+                                child: summary
+                                    ? Row(
+                                        key: ValueKey(
+                                          'together-summary-footer-${party.ref}',
                                         ),
-                                        const SizedBox(width: 9),
-                                        Expanded(
-                                          child: Text(
-                                            party.storeName,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              height: 1.25,
-                                              fontWeight: FontWeight.w600,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              10 * scale,
+                                            ),
+                                            child: artwork(size: 48 * scale),
+                                          ),
+                                          SizedBox(width: 10 * scale),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  party.theme,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: textStyle(
+                                                    16,
+                                                    weight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                SizedBox(height: 3 * scale),
+                                                Text(
+                                                  party.priceLabel,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: textStyle(
+                                                    13,
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ),
-                                        if (party.merchantHost) ...[
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '官方',
+                                          SizedBox(width: 10 * scale),
+                                          TextButton(
                                             key: ValueKey(
-                                              'together-official-${party.ref}',
+                                              'together-summary-open-${party.ref}',
                                             ),
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 11,
+                                            onPressed: onTap,
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Colors.white,
+                                              backgroundColor: Colors.white
+                                                  .withValues(alpha: .22),
+                                              minimumSize: Size(72 * scale, 44),
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 14 * scale,
+                                                vertical: 7 * scale,
+                                              ),
+                                              shape: const StadiumBorder(),
+                                              textStyle: textStyle(
+                                                16,
+                                                weight: FontWeight.w600,
+                                              ),
                                             ),
+                                            child: const Text('查看'),
                                           ),
                                         ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    TogetherParticipants(
-                                      party: party,
-                                      showCount: false,
-                                      seatSize: 44,
-                                      seatGap: 10,
-                                      iconHeight: 26,
-                                      singleRow: true,
-                                      cornerRadius: 10,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Wrap(
-                                      spacing: 12,
-                                      runSpacing: 4,
-                                      alignment: WrapAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '${party.participantCount}/${party.capacity}人 · ${party.feeLabel}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                            height: 1.4,
-                                          ),
+                                      )
+                                    : TogetherParticipants(
+                                        key: ValueKey(
+                                          'together-seats-footer-${party.ref}',
                                         ),
-                                        Text(
-                                          party.priceLabel,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 15,
-                                            height: 1.2,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        if (party.actionState !=
-                                            TogetherJoinState.available)
-                                          Text(
-                                            party.actionLabel,
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                                        party: party,
+                                        showCount: false,
+                                        seatSize: 48 * scale,
+                                        seatGap: 14 * scale,
+                                        iconHeight: 28 * scale,
+                                        singleRow: true,
+                                        cornerRadius: 11 * scale,
+                                      ),
                               ),
                             ),
                           ),
@@ -933,11 +921,11 @@ class TogetherAvailableRow extends StatelessWidget {
                   ],
                 ),
               ),
-            );
-          },
-        ),
-      ),
-    ],
+            ),
+          ),
+        ],
+      );
+    },
   );
 }
 

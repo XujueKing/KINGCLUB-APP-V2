@@ -2167,3 +2167,15 @@ Implementation: OPPO R11st Android8.1，1080×2160真机，安卓205。实际图
 - 无待修复P0/P1/P2。后续图片选材与最终字号留待用户实机反馈，不代表iOS/鸿蒙真机验证。
 
 final result: passed
+
+
+# 2026-10-26 AA卡片206版收简
+
+Reference: 本轮用户App Store截图，以及aa8e81cb3cb1b2a5d9387cc10add5cea.jpg底部图标参考。
+Implementation: aa206-aa.png，OPPO R11st 1080×2160；与原图同工具结果按卡片宽度比较，图片内容不同但大图/下方磨砂/横排48dp图标层级对应。
+
+- 205版用户明确拒绝的店名/Logo、官方、发起人、桌号、头像下方文字已移除。
+- AA底栏仅头像。大标题36dp、辅助文字14dp、外置标题22dp以353dp卡片宽缩放；真实手机图片及文字未溢出。
+- 26项定向测试通过，包含小屏/字体放大/头像横滚以及两种底栏选择；静态分析通过。
+- AA款无待修复P0/P1/P2：final result: passed（仅AA款安卓实机）。
+- 商家款组件几何捕获已检查，尚无服务端标注publisherType的真实活动，测试截图字体也不能代替真机字体；商家款实机视觉核对final result: blocked。用户已明确告知限制，不宣称两款均已真机验收。

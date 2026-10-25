@@ -45,6 +45,7 @@ TogetherParty fixture({
   String? ticketNumber,
   String? admissionCode,
   bool admissionUsed = false,
+  bool merchantHost = true,
   List<TogetherParticipant>? participants,
   List<TogetherGender> seatGenders = const [],
   String? posterUrl,
@@ -66,7 +67,7 @@ TogetherParty fixture({
   startsAt: DateTime(2026, 10, day, 21),
   endsAt: DateTime(2026, 10, day + 1, 2),
   hostName: '样例发起人',
-  merchantHost: true,
+  merchantHost: merchantHost,
   place: '样例活动地点',
   capacity: capacity,
   seatGenders: seatGenders,
@@ -547,10 +548,10 @@ void main() {
       );
       expect(reminder.top - ticket.bottom, closeTo(20 * .5, .1));
       expect(nextRow.top - reminder.bottom, closeTo(30 * .5, .1));
-      expect(find.text('商家发起 · KINGCLUB官方'), findsOneWidget);
+      expect(find.text('商家发起 · KINGCLUB官方'), findsNothing);
       expect(
         find.byKey(const ValueKey('together-official-music')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.byKey(const ValueKey('together-invitation-time-music')),
@@ -645,7 +646,11 @@ void main() {
       find.byKey(const ValueKey('together-use-reminder-pending')),
       findsNothing,
     );
-    expect(find.text('继续支付'), findsOneWidget);
+    expect(find.text('继续支付'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('together-summary-open-pending')),
+      findsOneWidget,
+    );
     expect(
       tester.getTopLeft(find.byKey(const ValueKey('together-card-night'))).dy,
       lessThan(
@@ -658,7 +663,7 @@ void main() {
   });
 
   testWidgets(
-    'invitation identifies host, rules and price and gates the action',
+    'merchant invitation omits store metadata and opens existing detail',
     (tester) async {
       tester.view.physicalSize = const Size(320, 780);
       tester.view.devicePixelRatio = 1;
@@ -689,9 +694,9 @@ void main() {
             ),
           ),
         );
-        expect(find.text(party.storeName), findsOneWidget);
-        expect(find.text('商家发起 · ${party.hostName}'), findsOneWidget);
-        expect(find.text(party.theme), findsOneWidget);
+        expect(find.text(party.storeName), findsNothing);
+        expect(find.text('商家发起 · ${party.hostName}'), findsNothing);
+        expect(find.text(party.theme), findsNWidgets(2));
         expect(find.text(party.rules), findsNothing);
         expect(find.byType(BackdropFilter), findsOneWidget);
         expect(find.text(party.priceLabel), findsOneWidget);
@@ -699,15 +704,66 @@ void main() {
           const ValueKey('together-invitation-action-night'),
         );
         expect(action, findsNothing);
-        expect(find.byType(TogetherParticipants), findsOneWidget);
+        expect(find.byType(TogetherParticipants), findsNothing);
+        expect(find.byType(TogetherStoreLogo), findsNothing);
         if (state == TogetherJoinState.available) {
           await tester.tap(find.byKey(const ValueKey('together-card-night')));
           expect(taps, 1);
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('together-summary-open-night')),
+          );
+          await tester.tap(
+            find.byKey(const ValueKey('together-summary-open-night')),
+          );
+          expect(taps, 2);
         }
         expect(tester.takeException(), isNull);
       }
     },
   );
+  testWidgets('AA footer has only seats and adapts to narrow and wide phones', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    for (final width in [320.0, 390.0, 600.0]) {
+      tester.view.physicalSize = Size(width, 1100);
+      final party = fixture(merchantHost: false, capacity: 12);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.5)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TogetherAvailableRow(party: party, onTap: () {}),
+            ),
+          ),
+        ),
+      );
+      final footer = find.byKey(const ValueKey('together-seats-footer-night'));
+      expect(footer, findsOneWidget);
+      expect(
+        find.descendant(of: footer, matching: find.byType(Text)),
+        findsNothing,
+      );
+      expect(find.byType(TogetherStoreLogo), findsNothing);
+      expect(find.text(party.storeName), findsNothing);
+      expect(find.text(party.priceLabel), findsNothing);
+      expect(find.text('查看'), findsNothing);
+      await tester.ensureVisible(footer);
+      await tester.drag(footer, const Offset(-900, 0));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('seat-night-11')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
   testWidgets('store selection filters city and resets table on store change', (
     tester,
   ) async {
