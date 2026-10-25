@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import '../../../core/design_system/king_language.dart';
@@ -708,190 +710,238 @@ class TogetherAvailableRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final unit = MediaQuery.sizeOf(context).width / 750;
-    TextStyle style(double rpx, Color color) =>
-        togetherLegacyDateStyle(rpx * unit, color).copyWith(height: 1.2);
-    final rules = party.rules.trim().replaceAll(RegExp(r'\s+'), ' ');
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20 * unit),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF40392E), Color(0xFF25221C)],
-                ),
-              ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        key: ValueKey('together-heading-${party.ref}'),
+        padding: const EdgeInsets.only(bottom: 12, top: 6),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Text(
+            party.theme,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: ValueKey('together-card-${party.ref}'),
-              onTap: onTap,
-              child: Padding(
-                padding: EdgeInsets.all(24 * unit),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final poster = party.detailPosters.firstOrNull;
+            return Material(
+              color: const Color(0xFF29251F),
+              child: InkWell(
+                key: ValueKey('together-card-${party.ref}'),
+                onTap: onTap,
+                child: Stack(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: AspectRatio(
-                        aspectRatio: 2,
-                        child: party.detailPosters.isEmpty
-                            ? const ColoredBox(
-                                color: Color(0xFF302A24),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.celebration_outlined,
-                                    color: legacyGold,
-                                    size: 40,
-                                  ),
-                                ),
-                              )
-                            : party.detailPosters.first.startsWith('assets/')
-                            ? Image.asset(
-                                party.detailPosters.first,
-                                fit: BoxFit.cover,
-                              )
-                            : CachedMediaImage(
-                                party.detailPosters.first,
-                                fit: BoxFit.cover,
-                              ),
+                    Positioned.fill(
+                      child: poster == null
+                          ? const ColoredBox(color: Color(0xFF393229))
+                          : poster.startsWith('assets/')
+                          ? Image.asset(poster, fit: BoxFit.cover)
+                          : CachedMediaImage(poster, fit: BoxFit.cover),
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              stops: const [0, .35, .75, 1],
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: .04),
+                                Colors.black.withValues(alpha: .72),
+                                Colors.black.withValues(alpha: .45),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TogetherStoreLogo(party: party, size: 28),
-                        const SizedBox(width: 8),
-                        Expanded(
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                party.storeName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: style(26, legacyPink),
-                              ),
-                              const SizedBox(height: 3),
+                              SizedBox(height: constraints.maxWidth * .52),
                               Text(
                                 '${party.publisherLabel}发起${party.hostName.trim().isEmpty ? '' : ' · ${party.hostName}'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: style(22, Colors.white54),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  height: 1.3,
+                                ),
                               ),
+                              const SizedBox(height: 6),
+                              Text(
+                                party.feeLabel,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  height: 1.18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                togetherCardTimeRange(party),
+                                key: ValueKey(
+                                  'together-invitation-time-${party.ref}',
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                              if (party.collaboratorHost &&
+                                  party.assignedTable != null)
+                                Text(
+                                  '位置 ${party.assignedTable}',
+                                  key: ValueKey(
+                                    'together-fixed-position-${party.ref}',
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
-                        if (party.merchantHost) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            key: ValueKey('together-official-${party.ref}'),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: legacyGold.withValues(alpha: .15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text('官方', style: style(22, legacyGold)),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      party.theme,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: style(
-                        34,
-                        legacyGold,
-                      ).copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      togetherCardTimeRange(party),
-                      key: ValueKey('together-invitation-time-${party.ref}'),
-                      style: style(24, legacyGold),
-                    ),
-                    if (party.collaboratorHost &&
-                        party.assignedTable != null) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        '位置 ${party.assignedTable}',
-                        key: ValueKey('together-fixed-position-${party.ref}'),
-                        style: style(24, Colors.white70),
-                      ),
-                    ],
-                    const SizedBox(height: 5),
-                    Text(
-                      rules.isEmpty ? party.feeLabel : rules,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: style(24, Colors.white60),
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TogetherParticipants(
-                        party: party,
-                        showCount: false,
-                        seatSize: 42,
-                        seatGap: 7,
-                        iconHeight: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                party.priceLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: style(
-                                  32,
-                                  legacyGold,
-                                ).copyWith(fontWeight: FontWeight.w600),
+                        ClipRect(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: ColoredBox(
+                              color: Colors.white.withValues(alpha: .14),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  18,
+                                  14,
+                                  18,
+                                  16,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        TogetherStoreLogo(
+                                          party: party,
+                                          size: 32,
+                                        ),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            party.storeName,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              height: 1.25,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        if (party.merchantHost) ...[
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '官方',
+                                            key: ValueKey(
+                                              'together-official-${party.ref}',
+                                            ),
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    TogetherParticipants(
+                                      party: party,
+                                      showCount: false,
+                                      seatSize: 44,
+                                      seatGap: 10,
+                                      iconHeight: 26,
+                                      singleRow: true,
+                                      cornerRadius: 10,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 4,
+                                      alignment: WrapAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${party.participantCount}/${party.capacity}人 · ${party.feeLabel}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                        Text(
+                                          party.priceLabel,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 15,
+                                            height: 1.2,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        if (party.actionState !=
+                                            TogetherJoinState.available)
+                                          Text(
+                                            party.actionLabel,
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${party.participantCount}/${party.capacity}人 · ${party.feeLabel}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: style(22, Colors.white54),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        if (party.actionState != TogetherJoinState.available)
-                          Text(party.actionLabel, style: style(24, legacyGold)),
                       ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
-    );
-  }
+    ],
+  );
 }
 
-/// Two rows of square seats, keeping the configured capacity visible.
+/// Tickets use two rows; editorial cards use a horizontally scrollable strip.
 /// Unknown gender remains neutral rather than inventing a male/female quota.
 class TogetherParticipants extends StatelessWidget {
   const TogetherParticipants({
@@ -901,13 +951,17 @@ class TogetherParticipants extends StatelessWidget {
     this.seatSize = 24,
     this.seatGap = 2,
     this.iconHeight = 15,
+    this.singleRow = false,
+    this.cornerRadius = 1,
   });
   final TogetherParty party;
   final bool showCount;
-  final double seatSize, seatGap, iconHeight;
+  final double seatSize, seatGap, iconHeight, cornerRadius;
+  final bool singleRow;
   @override
   Widget build(BuildContext context) {
-    final columns = (party.capacity + 1) ~/ 2;
+    final rows = singleRow ? 1 : 2;
+    final columns = (party.capacity + rows - 1) ~/ rows;
     final members = <int, TogetherParticipant>{};
     for (var i = 0; i < party.participants.length; i++) {
       final member = party.participants[i];
@@ -917,10 +971,10 @@ class TogetherParticipants extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         SizedBox(
-          height: seatSize * 2 + seatGap,
+          height: seatSize * rows + seatGap * (rows - 1),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final slotSize = columns == 0
+              final slotSize = singleRow || columns == 0
                   ? seatSize
                   : ((constraints.maxWidth - (columns - 1) * seatGap) / columns)
                         .clamp(18.0, seatSize);
@@ -929,7 +983,7 @@ class TogetherParticipants extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(
-                    2,
+                    rows,
                     (row) => Padding(
                       padding: EdgeInsets.only(top: row == 0 ? 0 : seatGap),
                       child: Row(
@@ -946,7 +1000,7 @@ class TogetherParticipants extends StatelessWidget {
                               ? member.gender
                               : index < party.seatGenders.length
                               ? party.seatGenders[index]
-                              : index < columns
+                              : index < (party.capacity + 1) ~/ 2
                               ? TogetherGender.male
                               : TogetherGender.female;
                           final symbol = switch (gender) {
@@ -981,7 +1035,9 @@ class TogetherParticipants extends StatelessWidget {
                               child: Opacity(
                                 opacity: member == null ? .3 : 1,
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(1),
+                                  borderRadius: BorderRadius.circular(
+                                    cornerRadius,
+                                  ),
                                   child: Container(
                                     key: ValueKey('seat-${party.ref}-$index'),
                                     width: slotSize,

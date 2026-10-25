@@ -540,7 +540,7 @@ void main() {
       );
       expect(date.top, closeTo(62, .1));
       final nextRow = tester.getRect(
-        find.byKey(const ValueKey('together-card-music')),
+        find.byKey(const ValueKey('together-heading-music')),
       );
       final reminder = tester.getRect(
         find.byKey(const ValueKey('together-use-reminder-friends')),
@@ -556,7 +556,7 @@ void main() {
         find.byKey(const ValueKey('together-invitation-time-music')),
         findsOneWidget,
       );
-      expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsOneWidget);
+      expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsNothing);
       expect(find.text('抢位'), findsNothing);
       expect(
         tester
@@ -580,7 +580,9 @@ void main() {
       expect(find.byType(TogetherPartyCard), findsNothing);
       expect(find.textContaining('请按时到场并出示入场码'), findsNothing);
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('together-card-music'))).dy,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('together-heading-music')))
+            .dy,
         closeTo(ticket.top, .1),
       );
       expect(tester.takeException(), isNull);
@@ -690,7 +692,8 @@ void main() {
         expect(find.text(party.storeName), findsOneWidget);
         expect(find.text('商家发起 · ${party.hostName}'), findsOneWidget);
         expect(find.text(party.theme), findsOneWidget);
-        expect(find.text(party.rules), findsOneWidget);
+        expect(find.text(party.rules), findsNothing);
+        expect(find.byType(BackdropFilter), findsOneWidget);
         expect(find.text(party.priceLabel), findsOneWidget);
         final action = find.byKey(
           const ValueKey('together-invitation-action-night'),
