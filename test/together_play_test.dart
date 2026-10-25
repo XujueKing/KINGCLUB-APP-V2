@@ -696,7 +696,7 @@ void main() {
         );
         expect(find.text(party.storeName), findsNothing);
         expect(find.text('商家发起 · ${party.hostName}'), findsNothing);
-        expect(find.text(party.theme), findsNWidgets(2));
+        expect(find.text(party.theme), findsNWidgets(3));
         expect(find.text(party.rules), findsNothing);
         expect(find.byType(BackdropFilter), findsOneWidget);
         expect(find.text(party.priceLabel), findsOneWidget);
@@ -790,7 +790,19 @@ void main() {
     );
     expect(card.left, closeTo(20, .4));
     expect(card.width, closeTo(353, .8));
-    final heading = tester.widget<Text>(find.text(party.feeLabel));
+    final heading = tester.widget<Text>(
+      find.byKey(const ValueKey('together-editorial-title-night')),
+    );
+    final kicker = tester.widget<Text>(
+      find.byKey(const ValueKey('together-kicker-night')),
+    );
+    final subtitle = tester.widget<Text>(
+      find.byKey(const ValueKey('together-invitation-time-night')),
+    );
+    expect(kicker.style!.fontSize, closeTo(12, .1));
+    expect(subtitle.style!.fontSize, closeTo(13, .1));
+    expect(kicker.style!.color!.a, closeTo(.6, .01));
+    expect(subtitle.style!.color!.a, closeTo(.6, .01));
     expect(heading.style!.fontSize, closeTo(28, .1));
     expect(heading.style!.fontFamily, 'CupertinoSystemDisplay');
     final hero = tester.getRect(
