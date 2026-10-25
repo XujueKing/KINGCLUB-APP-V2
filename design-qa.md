@@ -2153,3 +2153,17 @@ final result: passed
 Source: user supplied ce0e9c42bfbcee1ca1f4d68677bc52bc.jpg and old Choose.wxss. Implementation capture: build/together-preview.png at 393x852 using test-only records. Date/card hierarchy and dynamic theme/participation projections are implemented; full visual acceptance is pending production-font/device capture and connected activity flow. The local golden uses a test font and does not establish native typography fidelity. No iPhone installation or live activity/payment claim.
 
 final result: blocked ? final product entry, real media/financial services and device QA are not yet connected. This is a development node, not a prototype handoff.
+
+
+# 2026-10-26 AA邀请 App Store 卡片
+
+Reference: 用户三张App Store截图，最后一张 aa8e81cb3cb1b2a5d9387cc10add5cea.jpg，1206×2622。
+Implementation: OPPO R11st Android8.1，1080×2160真机，安卓205。实际图片和业务内容不同，按用户要求比较卡片结构而非游戏图片和Apple系统栏；两图在同一工具结果中并列查看，按卡片宽度归一比较。
+
+- 第一轮 P2：图内使用测试description导致两行冗长文字。已改feeLabel，第二次构建/安装后用私有aa205-final.png复核，短句可读，无省略的技术说明。
+- 外置白色活动标题和卡片左边对齐；整图同源铺满，底部BackdropFilter磨砂叠图，无第二层图片内框。
+- 圆角横排头像与参考底部图标排列对应；真实头像、亮色男女占位、暗色空位可辨，滑动到最后席位已实测。业务额外保留门店/价格/人数，区别于App Store应用集合，不虚构会员或隐藏容量。
+- 整卡进入原详情/返回正常；日期城市栏位置保留。25项定向测试与静态分析通过。
+- 无待修复P0/P1/P2。后续图片选材与最终字号留待用户实机反馈，不代表iOS/鸿蒙真机验证。
+
+final result: passed
