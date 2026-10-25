@@ -764,6 +764,53 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+  testWidgets('iPhone editorial geometry matches measured App Store card', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final party = fixture(merchantHost: false);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 393 * .04),
+              child: TogetherAvailableRow(party: party, onTap: () {}),
+            ),
+          ),
+        ),
+      ),
+    );
+    final card = tester.getRect(
+      find.byKey(const ValueKey('together-card-night')),
+    );
+    expect(card.left, closeTo(20, .4));
+    expect(card.width, closeTo(353, .8));
+    final heading = tester.widget<Text>(find.text(party.feeLabel));
+    expect(heading.style!.fontSize, closeTo(28, .1));
+    expect(heading.style!.fontFamily, 'CupertinoSystemDisplay');
+    final hero = tester.getRect(
+      find.byKey(const ValueKey('together-artwork-region-night')),
+    );
+    expect(hero.height, closeTo(357, 1));
+    final footer = tester.getRect(find.byType(BackdropFilter));
+    expect(footer.height, closeTo(78, .2));
+    expect(
+      find.byKey(const ValueKey('seat-night-4')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('seat-night-5')).hitTestable(),
+      findsNothing,
+    );
+    final fifth = tester.getRect(find.byKey(const ValueKey('seat-night-4')));
+    expect(fifth.right, closeTo(card.right - 20, .2));
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('store selection filters city and resets table on store change', (
     tester,
   ) async {

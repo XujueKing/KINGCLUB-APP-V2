@@ -5,6 +5,7 @@ import 'package:kingclub/src/core/formatters/money.dart';
 import '../../../core/design_system/king_language.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/design_system/king_components.dart';
@@ -710,222 +711,255 @@ class TogetherAvailableRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final scale = (constraints.maxWidth / 353).clamp(.8, 1.15);
-      final inset = 20 * scale;
-      final poster = party.detailPosters.firstOrNull;
-      final summary = party.merchantHost;
-      TextStyle textStyle(
-        double size, {
-        Color color = Colors.white,
-        FontWeight weight = FontWeight.w400,
-        double height = 1.2,
-      }) => TextStyle(
-        fontSize: size * scale,
-        color: color,
-        fontWeight: weight,
-        height: height,
-        letterSpacing: 0,
-      );
-      Widget artwork({double? size}) {
-        final image = poster == null
-            ? const ColoredBox(color: Color(0xFF393229))
-            : poster.startsWith('assets/')
-            ? Image.asset(poster, fit: BoxFit.cover)
-            : CachedMediaImage(poster, fit: BoxFit.cover);
-        return size == null
-            ? image
-            : SizedBox.square(dimension: size, child: image);
-      }
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.symmetric(
+      horizontal: MediaQuery.sizeOf(context).width * .01,
+    ),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = (constraints.maxWidth / 353).clamp(.8, 1.15);
+        final inset = 20 * scale;
+        final poster = party.detailPosters.firstOrNull;
+        final summary = party.merchantHost;
+        final cupertino = CupertinoTheme.of(context).textTheme;
+        final ios = Theme.of(context).platform == TargetPlatform.iOS;
+        TextStyle textStyle(
+          double size, {
+          Color color = Colors.white,
+          FontWeight weight = FontWeight.w400,
+          double height = 1.2,
+        }) =>
+            (ios
+                    ? (size >= 20
+                          ? cupertino.navLargeTitleTextStyle
+                          : cupertino.textStyle)
+                    : const TextStyle())
+                .copyWith(
+                  fontSize: size * scale,
+                  color: color,
+                  fontWeight: weight,
+                  height: height,
+                  letterSpacing: 0,
+                );
+        Widget artwork({double? size}) {
+          final image = poster == null
+              ? const ColoredBox(color: Color(0xFF393229))
+              : poster.startsWith('assets/')
+              ? Image.asset(poster, fit: BoxFit.cover)
+              : CachedMediaImage(poster, fit: BoxFit.cover);
+          return size == null
+              ? image
+              : SizedBox.square(dimension: size, child: image);
+        }
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            key: ValueKey('together-heading-${party.ref}'),
-            padding: EdgeInsets.only(bottom: 12 * scale, top: 6),
-            child: GestureDetector(
-              onTap: onTap,
-              child: Text(
-                party.theme,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: textStyle(22, weight: FontWeight.w700),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              key: ValueKey('together-heading-${party.ref}'),
+              padding: EdgeInsets.only(bottom: 12 * scale, top: 6),
+              child: GestureDetector(
+                onTap: onTap,
+                child: Text(
+                  party.theme,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle(20, weight: FontWeight.w700),
+                ),
               ),
             ),
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(22 * scale),
-            child: Material(
-              color: const Color(0xFF29251F),
-              child: InkWell(
-                key: ValueKey('together-card-${party.ref}'),
-                onTap: onTap,
-                child: Stack(
-                  children: [
-                    Positioned.fill(child: artwork()),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              stops: const [0, .4, .78, 1],
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: .04),
-                                Colors.black.withValues(alpha: .65),
-                                Colors.black.withValues(alpha: .32),
-                              ],
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22 * scale),
+              child: Material(
+                color: const Color(0xFF29251F),
+                child: InkWell(
+                  key: ValueKey('together-card-${party.ref}'),
+                  onTap: onTap,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: artwork()),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0, .4, .78, 1],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: .04),
+                                  Colors.black.withValues(alpha: .65),
+                                  Colors.black.withValues(alpha: .32),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            inset,
-                            0,
-                            inset,
-                            18 * scale,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: constraints.maxWidth * .75),
-                              Text(
-                                party.feeLabel,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: textStyle(
-                                  36,
-                                  weight: FontWeight.w700,
-                                  height: 1.12,
-                                ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ConstrainedBox(
+                            key: ValueKey(
+                              'together-artwork-region-${party.ref}',
+                            ),
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxWidth * 357 / 353,
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                inset,
+                                0,
+                                inset,
+                                18 * scale,
                               ),
-                              SizedBox(height: 10 * scale),
-                              Text(
-                                togetherCardTimeRange(party),
-                                key: ValueKey(
-                                  'together-invitation-time-${party.ref}',
-                                ),
-                                style: textStyle(
-                                  14,
-                                  color: Colors.white70,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ClipRect(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                            child: ColoredBox(
-                              color: Colors.white.withValues(alpha: .14),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: inset,
-                                  vertical: 16 * scale,
-                                ),
-                                child: summary
-                                    ? Row(
-                                        key: ValueKey(
-                                          'together-summary-footer-${party.ref}',
-                                        ),
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              10 * scale,
-                                            ),
-                                            child: artwork(size: 48 * scale),
-                                          ),
-                                          SizedBox(width: 10 * scale),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  party.theme,
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: textStyle(
-                                                    16,
-                                                    weight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 3 * scale),
-                                                Text(
-                                                  party.priceLabel,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: textStyle(
-                                                    13,
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          SizedBox(width: 10 * scale),
-                                          TextButton(
-                                            key: ValueKey(
-                                              'together-summary-open-${party.ref}',
-                                            ),
-                                            onPressed: onTap,
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: Colors.white,
-                                              backgroundColor: Colors.white
-                                                  .withValues(alpha: .22),
-                                              minimumSize: Size(72 * scale, 44),
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 14 * scale,
-                                                vertical: 7 * scale,
-                                              ),
-                                              shape: const StadiumBorder(),
-                                              textStyle: textStyle(
-                                                16,
-                                                weight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            child: const Text('查看'),
-                                          ),
-                                        ],
-                                      )
-                                    : TogetherParticipants(
-                                        key: ValueKey(
-                                          'together-seats-footer-${party.ref}',
-                                        ),
-                                        party: party,
-                                        showCount: false,
-                                        seatSize: 48 * scale,
-                                        seatGap: 14 * scale,
-                                        iconHeight: 28 * scale,
-                                        singleRow: true,
-                                        cornerRadius: 11 * scale,
-                                      ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    party.feeLabel,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textStyle(
+                                      28,
+                                      weight: FontWeight.w700,
+                                      height: 1.12,
+                                    ),
+                                  ),
+                                  SizedBox(height: 10 * scale),
+                                  Text(
+                                    togetherCardTimeRange(party),
+                                    key: ValueKey(
+                                      'together-invitation-time-${party.ref}',
+                                    ),
+                                    style: textStyle(
+                                      14,
+                                      color: Colors.white70,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                              child: ColoredBox(
+                                color: Colors.white.withValues(alpha: .14),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: inset,
+                                    vertical: 15 * scale,
+                                  ),
+                                  child: summary
+                                      ? Row(
+                                          key: ValueKey(
+                                            'together-summary-footer-${party.ref}',
+                                          ),
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    10 * scale,
+                                                  ),
+                                              child: artwork(size: 48 * scale),
+                                            ),
+                                            SizedBox(width: 10 * scale),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    party.theme,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: textStyle(
+                                                      16,
+                                                      weight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 3 * scale),
+                                                  Text(
+                                                    party.priceLabel,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: textStyle(
+                                                      13,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            SizedBox(width: 10 * scale),
+                                            TextButton(
+                                              key: ValueKey(
+                                                'together-summary-open-${party.ref}',
+                                              ),
+                                              onPressed: onTap,
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.white,
+                                                backgroundColor: Colors.white
+                                                    .withValues(alpha: .22),
+                                                minimumSize: Size(
+                                                  72 * scale,
+                                                  32 * scale,
+                                                ),
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .padded,
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 14 * scale,
+                                                  vertical: 6 * scale,
+                                                ),
+                                                shape: const StadiumBorder(),
+                                                textStyle: textStyle(
+                                                  16,
+                                                  weight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              child: const Text('查看'),
+                                            ),
+                                          ],
+                                        )
+                                      : TogetherParticipants(
+                                          key: ValueKey(
+                                            'together-seats-footer-${party.ref}',
+                                          ),
+                                          party: party,
+                                          showCount: false,
+                                          seatSize: 48 * scale,
+                                          seatGap:
+                                              ((constraints.maxWidth -
+                                                          2 * inset -
+                                                          5 * 48 * scale) /
+                                                      4)
+                                                  .clamp(0.0, 30.0),
+                                          iconHeight: 28 * scale,
+                                          singleRow: true,
+                                          cornerRadius: 11 * scale,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      );
-    },
+          ],
+        );
+      },
+    ),
   );
 }
 
