@@ -701,6 +701,56 @@ class TogetherStoreLogo extends StatelessWidget {
   }
 }
 
+/// Balance a two-line headline without shrinking its App Store type size.
+/// Keep words intact and avoid beginning the second line with punctuation.
+String togetherEditorialHeadline(
+  String title,
+  TextStyle style,
+  double width,
+  TextScaler scaler,
+  TextDirection direction,
+) {
+  final letters = title.characters.toList();
+  if (letters.length < 2 || letters.length > 80) return title;
+  final painter = TextPainter(textDirection: direction, textScaler: scaler);
+  double measure(String text) {
+    painter.text = TextSpan(text: text, style: style);
+    painter.layout();
+    return painter.width;
+  }
+
+  try {
+    if (measure(title) <= width) return title;
+    final word = RegExp(r'^[a-zA-Z0-9]$');
+    const closing = '，。！？：；、,.!?;:)]}》」』';
+    const opening = '([{《「『';
+    String? balanced;
+    var best = double.infinity;
+    for (var i = 1; i < letters.length; i++) {
+      if (word.hasMatch(letters[i - 1]) && word.hasMatch(letters[i])) continue;
+      final first = letters.take(i).join().trim();
+      final second = letters.skip(i).join().trim();
+      if (first.isEmpty ||
+          second.isEmpty ||
+          closing.contains(second.characters.first) ||
+          opening.contains(first.characters.last)) {
+        continue;
+      }
+      final firstWidth = measure(first);
+      final secondWidth = measure(second);
+      if (firstWidth > width || secondWidth > width) continue;
+      final cost = (firstWidth - secondWidth).abs();
+      if (cost < best) {
+        best = cost;
+        balanced = '$first\n$second';
+      }
+    }
+    return balanced ?? title;
+  } finally {
+    painter.dispose();
+  }
+}
+
 /// One invitation per host and party, separate from the member's tickets.
 class TogetherAvailableRow extends StatelessWidget {
   const TogetherAvailableRow({
@@ -845,7 +895,18 @@ class TogetherAvailableRow extends StatelessWidget {
                                       ),
                                       SizedBox(height: 4 * scale),
                                       Text(
-                                        party.theme,
+                                        togetherEditorialHeadline(
+                                          party.theme,
+                                          textStyle(
+                                            28,
+                                            weight: FontWeight.w700,
+                                            height: 1.15,
+                                          ),
+                                          constraints.maxWidth - 2 * inset,
+                                          MediaQuery.textScalerOf(context),
+                                          Directionality.of(context),
+                                        ),
+                                        semanticsLabel: party.theme,
                                         key: ValueKey(
                                           'together-editorial-title-${party.ref}',
                                         ),

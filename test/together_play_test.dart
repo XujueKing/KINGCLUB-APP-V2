@@ -106,6 +106,36 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  test(
+    'editorial headline balances Chinese titles without a one-character orphan',
+    () {
+      const title = '测试·生日快乐，今晚我请客';
+      const style = TextStyle(fontSize: 28, fontWeight: FontWeight.w700);
+      final text = togetherEditorialHeadline(
+        title,
+        style,
+        313,
+        TextScaler.noScaling,
+        TextDirection.ltr,
+      );
+      final lines = text.split('\n');
+      expect(lines, hasLength(2));
+      expect(lines.every((line) => line.characters.length > 3), isTrue);
+      expect(lines.last.startsWith('，'), isFalse);
+      expect(lines.join(), title);
+      expect(
+        togetherEditorialHeadline(
+          '周末微醺',
+          style,
+          313,
+          TextScaler.noScaling,
+          TextDirection.ltr,
+        ),
+        '周末微醺',
+      );
+    },
+  );
+
   testWidgets('joined seats without photos use full gender symbols', (
     tester,
   ) async {
