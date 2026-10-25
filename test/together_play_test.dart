@@ -122,6 +122,7 @@ void main() {
       expect(lines, hasLength(2));
       expect(lines.every((line) => line.characters.length > 3), isTrue);
       expect(lines.last.startsWith('，'), isFalse);
+      expect(lines.first.endsWith('，'), isTrue);
       expect(lines.join(), title);
       expect(
         togetherEditorialHeadline(

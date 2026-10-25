@@ -726,6 +726,7 @@ String togetherEditorialHeadline(
     const opening = '([{《「『';
     String? balanced;
     var best = double.infinity;
+    var bestAtSeparator = false;
     for (var i = 1; i < letters.length; i++) {
       if (word.hasMatch(letters[i - 1]) && word.hasMatch(letters[i])) continue;
       final first = letters.take(i).join().trim();
@@ -740,7 +741,13 @@ String togetherEditorialHeadline(
       final secondWidth = measure(second);
       if (firstWidth > width || secondWidth > width) continue;
       final cost = (firstWidth - secondWidth).abs();
-      if (cost < best) {
+      final atSeparator =
+          RegExp(r'[，,：:；;、]$').hasMatch(first) &&
+          firstWidth >= width * .35 &&
+          secondWidth >= width * .35;
+      if ((atSeparator && !bestAtSeparator) ||
+          (atSeparator == bestAtSeparator && cost < best)) {
+        bestAtSeparator = atSeparator;
         best = cost;
         balanced = '$first\n$second';
       }

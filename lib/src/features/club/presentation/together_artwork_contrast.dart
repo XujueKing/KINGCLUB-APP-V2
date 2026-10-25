@@ -135,7 +135,7 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
               final frame = await codec.getNextFrame();
               try {
                 final data = await frame.image.toByteData(
-                  format: ui.ImageByteFormat.rawRgba,
+                  format: ui.ImageByteFormat.rawStraightRgba,
                 );
                 if (data == null) return null;
                 return TogetherArtworkSample(

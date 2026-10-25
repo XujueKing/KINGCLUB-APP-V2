@@ -191,6 +191,16 @@ void main() {
     );
   });
 
+  test(
+    'partial transparent light pixels composite over the dark surface once',
+    () {
+      expect(
+        sample(32, 32, (_, _) => const Color(0x80FFFFFF)).prefersBlack(1),
+        isTrue,
+      );
+    },
+  );
+
   test('small text uses the same black or white ink at sixty percent', () {
     const light = TogetherArtworkInk(black: true);
     const dark = TogetherArtworkInk();
