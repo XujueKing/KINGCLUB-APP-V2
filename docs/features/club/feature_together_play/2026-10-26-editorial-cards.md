@@ -96,3 +96,13 @@ Xcode Cloud206（e2b2e5e0-2a24-465b-9e65-6402f754d67e）已VALID。仅界面/测
 - 三条限定AA-UI-20261009-01/02/03测试quote仅description更新，校验owner/store/数量3并备份原documentJson后事务提交。活动名称保留测试标识，时间/报名/库存/付款未改；真实catalog/detail已验证返回新文案。
 - 最终源67c4253f：35项定向测试全部通过，包含三层12/28/13字号和60%小字、浅/深/实际裁切区域、透明/半透明像素、实际PNG解码、换图/缓存复用/失败后重试、长标题语义换行、原有入场券及页面路由；静态分析无问题。
 - 安卓208实机先验证浅生日图黑字、深组局图白字（aa208-bright.png/aa208-dark.png）；发现标题末字孤行、均衡后又拆词，最终增加逗号边界优先。安卓210/iOS最新云包待完整复核，不把中间包视为本轮最终验收。
+
+
+### 第四轮安卓210最终画面
+
+USB已读取OPPO R11st安装versionCode=210；aa210-bright.png与aa210-dark.png分别捕获完整浅色生日/深色组局卡片，aa210-android-comparison.png将参考与两张同宽裁切并列。生日标题在逗号后断行，无孤字或拆开“快乐”；图内小引题、大主题、小介绍三组齐全且无日期，浅图黑字、深图白字；底栏五完整席位可见，照片/亮男女/暗男女状态区分。安卓采用系统字形，不把该截图当iOS字体证据。
+
+Xcode Cloud210（run 25a8b281-c7d7-4e5b-993d-1a20f2d6b256，build 48a4ca9b-deca-4c27-8bd7-221197b23ba0）已上传，当前Apple PROCESSING；待TestFlight开放与iPhone新截图。
+
+
+Apple已处理210为VALID；本轮仅UI/采样与测试变化，加密用途未变，沿既有问卷登记usesNonExemptEncryption=false，加入原内部测试组后IN_BETA_TESTING。2026-10-26 05:08 USB未识别iPhone，已请用户TestFlight更新210并重新连接；未把开放更新写成已安装。
