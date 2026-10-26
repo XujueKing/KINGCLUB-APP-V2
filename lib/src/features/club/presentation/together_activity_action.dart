@@ -17,16 +17,16 @@ class TogetherFooterPalette {
     primary = light ? const Color(0xFF080A0C) : Colors.white;
     secondary = primary.withValues(alpha: .6);
     if (light) {
-      action = tone
-          .withSaturation(tone.saturation * .3)
-          .withLightness(.47)
-          .toColor();
+      action = HSVColor.fromColor(opaque).saturation >= .2
+          ? tone.withLightness(.32).toColor()
+          : tone
+                .withSaturation(tone.saturation * .3)
+                .withLightness(.47)
+                .toColor();
     } else {
       action = Color.alphaBlend(Colors.white.withValues(alpha: .28), opaque);
     }
-    actionText = action.computeLuminance() > .65
-        ? const Color(0xFF151515)
-        : Colors.white;
+    actionText = Colors.white;
   }
   late final Color primary, secondary, action, actionText;
 }
@@ -51,7 +51,7 @@ class TogetherActivityAction extends StatelessWidget {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: palette.actionText,
-        disabledForegroundColor: palette.actionText.withValues(alpha: .4),
+        disabledForegroundColor: palette.actionText,
         minimumSize: const Size(74, 44),
         padding: EdgeInsets.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,

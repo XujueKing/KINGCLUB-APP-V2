@@ -19,6 +19,11 @@ void main() {
       expect(pink.primary.computeLuminance(), lessThan(.02));
       expect(pink.action.computeLuminance(), lessThan(.25));
       expect(
+        HSLColor.fromColor(pink.action).hue,
+        closeTo(HSLColor.fromColor(const Color(0xFFD59DB2)).hue, 2),
+      );
+      expect(HSLColor.fromColor(pink.action).saturation, greaterThan(.3));
+      expect(
         orange.action.computeLuminance(),
         greaterThan(const Color(0xFFE98F23).computeLuminance()),
       );
@@ -65,6 +70,12 @@ void main() {
     expect(textStyle.fontSize, 15);
     expect(textStyle.fontWeight, FontWeight.w600);
     expect(textStyle.fontFamily, 'CupertinoSystemText');
+    expect(
+      tester.widget<TextButton>(button).style!.foregroundColor!.resolve({
+        WidgetState.disabled,
+      }),
+      Colors.white,
+    );
     expect(
       tester.getRect(find.text('加入')).center.dy,
       closeTo(tester.getRect(pill).center.dy, .01),
