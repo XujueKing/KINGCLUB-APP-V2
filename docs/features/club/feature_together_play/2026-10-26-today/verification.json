@@ -45,11 +45,25 @@
     "three account classification entries",
     "both menus return home",
     "future activity detail",
-    "original APP arrow asset on all inner pages",
+    "original APP arrow asset on account and purchase pages",
     "centered 17px inner title",
     "unused vouchers reuse legacy gradient ticket",
     "eight two-row seats",
-    "sample voucher has no valid redemption code"
+    "sample voucher has no valid redemption code",
+    "first button View per activity",
+    "animation starts at clicked rectangle",
+    "position and size expand continuously",
+    "detail always Join",
+    "detail Join opens purchase",
+    "purchase back restores detail",
+    "close restores list offset",
+    "viewed body still opens detail",
+    "viewed Join directly buys without propagation",
+    "unviewed activity remains View",
+    "close remains fixed over long details",
+    "reduced motion skips movement",
+    "compact seats do not overlap action",
+    "compact close remains reachable"
   ],
   "runtimeErrors": 0
 }

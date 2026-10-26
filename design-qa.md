@@ -2283,3 +2283,13 @@ final result: passed (2026-10-27 menu design prototype only, not native implemen
 - Changes: original back.png arrow with 48px target and centered 17px title on inner pages; unused invitation tickets reuse the original horizontal gradient ticket structure and font assets.
 - Evidence: 22 headless Edge checks passed, zero runtime exceptions; local unused-tickets.png visually reviewed. Sample ticket has no valid redemption code. Existing Today fade and both menus still pass.
 - Result: passed for design review; device font parity and live ticket behavior are not claimed.
+
+## 2026-10-27 — Activity expansion and View/Join design
+
+- Scope: existing local UI prototype and documentation only.
+- Reference: user-supplied App Store card/list and expanded detail screenshots; product assets, 24px headline and existing account/back assets retained.
+- P2 fixes: removed duplicate source card during movement, constrained seat rail to complete avatars beside action, kept close control fixed over long description. Revised local screenshots reviewed after fixes.
+- Typography/spacing/colors/image/copy: existing 24/12/13 hierarchy and frosted art treatment retained; full-width expanded hero and description below; View then Join per activity, detail always Join. Different activity art/copy is intentional, pixel parity is not claimed.
+- Verification: 36 browser checks pass, zero runtime errors; origin and mid-animation geometry, independent viewed states, direct purchase routing without bubbling, return state, fixed close, reduced motion and compact width covered. One initial CDP timeout was followed by diagnostic and final successful runs.
+- Evidence: local expansion-origin.png, expansion-mid.png, expanded-detail.png, viewed-card.png, purchase.png and compact-cards.png. No PNG committed. Purchase is a navigation demonstration, no real order/payment.
+- final result: passed for scoped design review. Native device motion and transaction integration remain outside this phase.
