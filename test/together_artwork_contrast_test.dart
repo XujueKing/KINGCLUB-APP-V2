@@ -162,6 +162,50 @@ void main() {
     );
   });
 
+  test('light posters produce a related dark hue with readable contrast', () {
+    for (final background in [
+      const Color(0xFFF2C5D4),
+      const Color(0xFFDFF3A7),
+      const Color(0xFFB9DEEF),
+      const Color(0xFF858585),
+    ]) {
+      final tone = sample(32, 32, (_, _) => background).darkTextTone(353 / 435);
+      final hsv = HSVColor.fromColor(tone);
+      expect(tone, isNot(Colors.black));
+      expect(hsv.value, lessThanOrEqualTo(.245));
+      expect(
+        (background.computeLuminance() + .05) / (tone.computeLuminance() + .05),
+        greaterThanOrEqualTo(4.5),
+      );
+      if (HSVColor.fromColor(background).saturation > .08) {
+        expect(hsv.hue, closeTo(HSVColor.fromColor(background).hue, 3));
+      } else {
+        expect(hsv.saturation, 0);
+      }
+    }
+  });
+
+  test('editorial tint ignores bright color outside the visible text area', () {
+    final artwork = sample(
+      32,
+      32,
+      (_, y) => y < 16 ? const Color(0xFFB9DEEF) : const Color(0xFFF2C5D4),
+    );
+    final tone = artwork.darkTextTone(1);
+    expect(
+      HSVColor.fromColor(tone).hue,
+      closeTo(HSVColor.fromColor(const Color(0xFFF2C5D4)).hue, 3),
+    );
+    final ink = TogetherArtworkInk(black: true, darkTone: tone);
+    expect(ink.editorialPrimary, tone);
+    expect(ink.editorialSecondary.a, closeTo(.6, .001));
+    expect(
+      ink.primary,
+      Colors.black,
+    ); // Footer labels keep their existing style.
+    expect(const TogetherArtworkInk().editorialPrimary, Colors.white);
+  });
+
   test('text region takes precedence over a bright top half', () {
     expect(
       sample(

@@ -938,7 +938,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                         style: textStyle(
                                           12,
                                           weight: FontWeight.w600,
-                                          color: ink.secondary,
+                                          color: ink.editorialSecondary,
                                         ),
                                       ),
                                       SizedBox(height: 4 * scale),
@@ -962,6 +962,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: textStyle(
                                           24,
+                                          color: ink.editorialPrimary,
                                           weight: FontWeight.w700,
                                           height: 1.15,
                                         ),
@@ -978,7 +979,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: textStyle(
                                           13,
-                                          color: ink.secondary,
+                                          color: ink.editorialSecondary,
                                           height: 1.3,
                                         ),
                                       ),

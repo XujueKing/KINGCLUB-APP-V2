@@ -14,6 +14,48 @@ class TogetherArtworkSample {
   final Uint8List rgba;
   final File? file;
 
+  Color darkTextTone(double aspectRatio) {
+    final factor = math.max(aspectRatio / width, 1 / height);
+    final left = (width * factor - aspectRatio) / 2;
+    final top = (height * factor - 1) / 2;
+    var red = 0.0, green = 0.0, blue = 0.0, count = 0;
+    for (var y = 0; y < height; y++) {
+      final dy = (y + .5) * factor - top;
+      if (dy < .49 || dy > .83) continue;
+      for (var x = 0; x < width; x++) {
+        final dx = ((x + .5) * factor - left) / aspectRatio;
+        if (dx < .06 || dx > .94) continue;
+        final i = (y * width + x) * 4, alpha = rgba[i + 3] / 255;
+        red += rgba[i] * alpha + 57 * (1 - alpha);
+        green += rgba[i + 1] * alpha + 50 * (1 - alpha);
+        blue += rgba[i + 2] * alpha + 41 * (1 - alpha);
+        count++;
+      }
+    }
+    if (count == 0) return const Color(0xFF242424);
+    final background = Color.fromARGB(
+      255,
+      (red / count).round(),
+      (green / count).round(),
+      (blue / count).round(),
+    );
+    final hue = HSVColor.fromColor(background);
+    var tone = hue
+        .withSaturation(
+          hue.saturation < .08 ? 0 : hue.saturation.clamp(.25, .65),
+        )
+        .withValue(.24);
+    // Keep the sampled hue, darkening it further on less luminous artwork.
+    // No palette network call or additional image decode is needed.
+    while ((background.computeLuminance() + .05) /
+                (tone.toColor().computeLuminance() + .05) <
+            4.5 &&
+        tone.value > .015) {
+      tone = tone.withValue(tone.value * .8);
+    }
+    return tone.toColor();
+  }
+
   Color footerTint(double aspectRatio, {required bool blackText}) {
     final factor = math.max(aspectRatio / width, 1 / height);
     final left = (width * factor - aspectRatio) / 2;
@@ -88,10 +130,14 @@ class TogetherArtworkInk {
     this.ready = true,
     this.footerColor,
     this.posterFile,
+    this.darkTone,
   });
   final bool black, ready;
   final Color? footerColor;
   final File? posterFile;
+  final Color? darkTone;
+  Color get editorialPrimary => black ? darkTone ?? primary : primary;
+  Color get editorialSecondary => editorialPrimary.withValues(alpha: .60);
   Color get flatFooter =>
       footerColor ??
       (black ? const Color(0xDDC0B9AC) : const Color(0xDD302B30));
@@ -227,20 +273,22 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
     key: ValueKey(widget.source),
     future: _future,
     initialData: _resolved[widget.source],
-    builder: (context, snapshot) => widget.builder(
-      context,
-      TogetherArtworkInk(
-        posterFile: snapshot.data?.file,
-        ready:
-            widget.source == null ||
-            snapshot.hasData ||
-            snapshot.connectionState == ConnectionState.done,
-        black: snapshot.data?.prefersBlack(widget.aspectRatio) ?? false,
-        footerColor: snapshot.data?.footerTint(
-          widget.aspectRatio,
-          blackText: snapshot.data?.prefersBlack(widget.aspectRatio) ?? false,
+    builder: (context, snapshot) {
+      final sample = snapshot.data;
+      final black = sample?.prefersBlack(widget.aspectRatio) ?? false;
+      return widget.builder(
+        context,
+        TogetherArtworkInk(
+          posterFile: sample?.file,
+          ready:
+              widget.source == null ||
+              snapshot.hasData ||
+              snapshot.connectionState == ConnectionState.done,
+          black: black,
+          darkTone: black ? sample?.darkTextTone(widget.aspectRatio) : null,
+          footerColor: sample?.footerTint(widget.aspectRatio, blackText: black),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
