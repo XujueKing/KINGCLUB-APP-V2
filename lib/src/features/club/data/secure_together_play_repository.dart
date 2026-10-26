@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'together_rule_summary.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
@@ -6,6 +7,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 import 'together_play.dart';
+import 'together_feed.dart';
 
 class TogetherCoupon {
   const TogetherCoupon({
@@ -40,6 +42,7 @@ class TogetherBooking {
 class SecureTogetherPlayRepository
     implements
         TogetherPlayRepository,
+        TogetherFeedRepository,
         TogetherAdmissionRepository,
         TogetherRemovalRepository {
   SecureTogetherPlayRepository({
@@ -265,9 +268,16 @@ class SecureTogetherPlayRepository
           ? _text(r['assignedTable'])
           : null,
       admissionUsed: bookingStatus == 'paid' && r['admissionUsed'] == true,
+      bookingStatus: bookingStatus as String?,
+      bookingRef: r['myBookingRef'] == null ? null : _ref(r['myBookingRef']),
+      bookingPayableMinor: r['myPayableCents'] == null
+          ? null
+          : _money(r['myPayableCents']),
       feeMode: fee,
       priceMinor: _money(r['priceCents']),
-      state: bookingStatus == 'paid'
+      state: r['partyStatus'] == 'cancelled'
+          ? TogetherJoinState.cancelled
+          : bookingStatus == 'paid'
           ? TogetherJoinState.joined
           : !end.isAfter(DateTime.now().toUtc())
           ? TogetherJoinState.closed
@@ -292,6 +302,79 @@ class SecureTogetherPlayRepository
       eligibilityReasons: reasons,
       personalPriceMinor: personalPrice,
     );
+  }
+
+  @override
+  Future<TogetherFeedPage> feed({
+    required TogetherFeedView view,
+    String? cityCode,
+    String? storeRef,
+    DateTime? date,
+    String? after,
+  }) async {
+    if (view == TogetherFeedView.recommendations && cityCode == null) {
+      _invalid();
+    }
+    if (cityCode != null) _ref(cityCode);
+    if (storeRef != null) _ref(storeRef);
+    if (after != null) _ref(after);
+    final session = await readSession();
+    final identity = _identity(session);
+    final day = date == null
+        ? null
+        : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final r = await _call(
+      'K261004001985',
+      {
+        'view': view.name,
+        'cityCode': ?cityCode,
+        'storeRef': ?storeRef,
+        'date': ?day,
+        'after': ?after,
+        'limit': 20,
+      },
+      session!,
+      identity,
+    );
+    if (r['view'] != view.name ||
+        r['cityCode'] != cityCode ||
+        r['storeRef'] != storeRef ||
+        r['date'] != day ||
+        r['items'] is! List) {
+      _invalid();
+    }
+    final rows = r['items'] as List;
+    if (rows.length > 20) _invalid();
+    final seen = <String>{};
+    final items = rows.map(_party).toList();
+    for (final p in items) {
+      if (!seen.add(p.ref) ||
+          (cityCode != null && p.cityCode != cityCode) ||
+          (storeRef != null && p.storeRef != storeRef) ||
+          (date != null &&
+              (p.startsAt.year != date.year ||
+                  p.startsAt.month != date.month ||
+                  p.startsAt.day != date.day))) {
+        _invalid();
+      }
+      if (view == TogetherFeedView.tickets &&
+          (!p.hasAdmissionTicket || p.admissionUsed)) {
+        _invalid();
+      }
+    }
+    final next = r['next'];
+    if (next != null &&
+        (items.isEmpty || _ref(next) != items.last.ref || next == after)) {
+      _invalid();
+    }
+    final viewer = r['viewer'];
+    Uint8List? avatar;
+    if (viewer is Map && viewer['avatarBase64'] != null) {
+      final image = viewer['avatarBase64'];
+      if (image is! String || image.length > 65536) _invalid();
+      avatar = base64Decode(image);
+    }
+    return TogetherFeedPage(items, next as String?, avatarBytes: avatar);
   }
 
   @override

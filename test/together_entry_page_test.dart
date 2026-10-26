@@ -39,6 +39,9 @@ void main() {
         return {
           'result': {
             'cityCode': params['cityCode'],
+            'view': params['view'],
+            'storeRef': params['storeRef'],
+            'date': params['date'],
             'startsFrom': params['startsFrom'],
             'startsBefore': params['startsBefore'],
             'items': [],
@@ -66,15 +69,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(calls, ['K261004001985']);
-    expect(find.text('这一天还没有同城组局'), findsOneWidget);
+    expect(find.text('当前没有可选活动'), findsOneWidget);
     expect(find.text('888'), findsNothing);
     expect(find.textContaining('请按时到场'), findsNothing);
     expect(find.text('发起组局'), findsNothing);
-    expect(find.text('AA邀请'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('together-city-selector')),
-      findsOneWidget,
-    );
+    expect(find.text('今日'), findsOneWidget);
+    expect(find.byKey(const ValueKey('today-menu')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

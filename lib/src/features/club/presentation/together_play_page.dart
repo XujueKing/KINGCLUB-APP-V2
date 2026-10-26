@@ -764,14 +764,24 @@ class TogetherAvailableRow extends StatelessWidget {
     super.key,
     required this.party,
     required this.onTap,
+    this.onAction,
+    this.actionLabel = '查看',
+    this.showHeading = true,
+    this.edgeInset = true,
+    this.expanded = false,
+    this.showAction = false,
+    this.blurFooter = true,
   });
   final TogetherParty party;
   final VoidCallback onTap;
+  final VoidCallback? onAction;
+  final String actionLabel;
+  final bool showHeading, edgeInset, expanded, showAction, blurFooter;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.symmetric(
-      horizontal: MediaQuery.sizeOf(context).width * .01,
+      horizontal: edgeInset ? MediaQuery.sizeOf(context).width * .01 : 0,
     ),
     child: LayoutBuilder(
       builder: (context, constraints) {
@@ -804,11 +814,25 @@ class TogetherAvailableRow extends StatelessWidget {
                       letterSpacing: 0,
                     );
             Widget artwork({double? size}) {
+              final decodeWidth =
+                  ((size ?? MediaQuery.sizeOf(context).width) *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                      .clamp(1, 1440);
               final image = poster == null || !ink.ready
                   ? const ColoredBox(color: Color(0xFF393229))
                   : poster.startsWith('assets/')
-                  ? Image.asset(poster, fit: BoxFit.cover)
-                  : CachedMediaImage(poster, fit: BoxFit.cover);
+                  ? Image.asset(
+                      poster,
+                      fit: BoxFit.cover,
+                      cacheWidth: decodeWidth,
+                    )
+                  : CachedMediaImage(
+                      poster,
+                      fit: BoxFit.cover,
+                      cacheWidth: decodeWidth,
+                      placeholder: const SizedBox.shrink(),
+                    );
               return size == null
                   ? image
                   : SizedBox.square(dimension: size, child: image);
@@ -817,25 +841,28 @@ class TogetherAvailableRow extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  key: ValueKey('together-heading-${party.ref}'),
-                  padding: EdgeInsets.only(bottom: 12 * scale, top: 6),
-                  child: GestureDetector(
-                    onTap: onTap,
-                    child: Text(
-                      party.theme,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyle(
-                        20,
-                        weight: FontWeight.w700,
-                        color: Colors.white,
+                if (showHeading)
+                  Padding(
+                    key: ValueKey('together-heading-${party.ref}'),
+                    padding: EdgeInsets.only(bottom: 12 * scale, top: 6),
+                    child: GestureDetector(
+                      onTap: onTap,
+                      child: Text(
+                        party.theme,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textStyle(
+                          20,
+                          weight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(22 * scale),
+                  borderRadius: BorderRadius.circular(
+                    expanded ? 0 : 22 * scale,
+                  ),
                   child: Material(
                     color: const Color(0xFF29251F),
                     child: InkWell(
@@ -947,12 +974,15 @@ class TogetherAvailableRow extends StatelessWidget {
                               ),
                               ClipRect(
                                 child: BackdropFilter(
+                                  enabled: blurFooter,
                                   filter: ImageFilter.blur(
                                     sigmaX: 12,
                                     sigmaY: 12,
                                   ),
                                   child: ColoredBox(
-                                    color: ink.glass,
+                                    color: blurFooter
+                                        ? ink.glass
+                                        : ink.flatFooter,
                                     child: Padding(
                                       padding: EdgeInsets.symmetric(
                                         horizontal: inset,
@@ -1012,7 +1042,9 @@ class TogetherAvailableRow extends StatelessWidget {
                                                   key: ValueKey(
                                                     'together-summary-open-${party.ref}',
                                                   ),
-                                                  onPressed: onTap,
+                                                  onPressed: showAction
+                                                      ? onAction
+                                                      : onAction ?? onTap,
                                                   style: TextButton.styleFrom(
                                                     foregroundColor:
                                                         Colors.white,
@@ -1046,26 +1078,60 @@ class TogetherAvailableRow extends StatelessWidget {
                                                       color: Colors.white,
                                                     ),
                                                   ),
-                                                  child: const Text('查看'),
+                                                  child: Text(actionLabel),
                                                 ),
                                               ],
                                             )
-                                          : TogetherParticipants(
-                                              key: ValueKey(
-                                                'together-seats-footer-${party.ref}',
-                                              ),
-                                              party: party,
-                                              showCount: false,
-                                              seatSize: 48 * scale,
-                                              seatGap:
-                                                  ((constraints.maxWidth -
-                                                              2 * inset -
-                                                              5 * 48 * scale) /
-                                                          4)
-                                                      .clamp(0.0, 30.0),
-                                              iconHeight: 28 * scale,
-                                              singleRow: true,
-                                              cornerRadius: 11 * scale,
+                                          : Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TogetherParticipants(
+                                                    key: ValueKey(
+                                                      'together-seats-footer-${party.ref}',
+                                                    ),
+                                                    party: party,
+                                                    showCount: false,
+                                                    seatSize: 48 * scale,
+                                                    seatGap:
+                                                        ((constraints.maxWidth -
+                                                                    2 * inset -
+                                                                    5 *
+                                                                        48 *
+                                                                        scale) /
+                                                                4)
+                                                            .clamp(0.0, 30.0),
+                                                    iconHeight: 28 * scale,
+                                                    singleRow: true,
+                                                    maxSeats: showAction
+                                                        ? 20
+                                                        : null,
+                                                    cornerRadius: 11 * scale,
+                                                  ),
+                                                ),
+                                                if (onAction != null ||
+                                                    showAction) ...[
+                                                  const SizedBox(width: 12),
+                                                  TextButton(
+                                                    key: ValueKey(
+                                                      'together-join-${party.ref}',
+                                                    ),
+                                                    onPressed: onAction,
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          ink.primary,
+                                                      backgroundColor:
+                                                          ink.glass,
+                                                      minimumSize: const Size(
+                                                        72,
+                                                        44,
+                                                      ),
+                                                      shape:
+                                                          const StadiumBorder(),
+                                                    ),
+                                                    child: Text(actionLabel),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                     ),
                                   ),
@@ -1099,15 +1165,29 @@ class TogetherParticipants extends StatelessWidget {
     this.iconHeight = 15,
     this.singleRow = false,
     this.cornerRadius = 1,
+    this.maxSeats,
   });
   final TogetherParty party;
   final bool showCount;
   final double seatSize, seatGap, iconHeight, cornerRadius;
   final bool singleRow;
+  final int? maxSeats;
   @override
   Widget build(BuildContext context) {
     final rows = singleRow ? 1 : 2;
-    final columns = (party.capacity + rows - 1) ~/ rows;
+    final seatIndices = List.generate(
+      party.capacity.clamp(0, maxSeats ?? party.capacity),
+      (i) => i,
+    );
+    for (final p in party.participants.where((p) => p.isMe)) {
+      final index = p.seatIndex;
+      if (index != null &&
+          index < party.capacity &&
+          !seatIndices.contains(index)) {
+        seatIndices.add(index);
+      }
+    }
+    final columns = (seatIndices.length + rows - 1) ~/ rows;
     final members = <int, TogetherParticipant>{};
     for (var i = 0; i < party.participants.length; i++) {
       final member = party.participants[i];
@@ -1124,7 +1204,7 @@ class TogetherParticipants extends StatelessWidget {
                   ? seatSize
                   : ((constraints.maxWidth - (columns - 1) * seatGap) / columns)
                         .clamp(18.0, seatSize);
-              return SingleChildScrollView(
+              final strip = SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1135,10 +1215,11 @@ class TogetherParticipants extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(columns, (col) {
-                          final index = row * columns + col;
-                          if (index >= party.capacity) {
+                          final offset = row * columns + col;
+                          if (offset >= seatIndices.length) {
                             return SizedBox(width: slotSize);
                           }
+                          final index = seatIndices[offset];
                           final member = members[index];
                           final gender =
                               member?.gender != null &&
@@ -1236,6 +1317,21 @@ class TogetherParticipants extends StatelessWidget {
                   ),
                 ),
               );
+              if (singleRow && maxSeats != null && columns > 0) {
+                final count =
+                    ((constraints.maxWidth + seatGap) / (slotSize + seatGap))
+                        .floor()
+                        .clamp(1, columns);
+                final width = (count * slotSize + (count - 1) * seatGap).clamp(
+                  0.0,
+                  constraints.maxWidth,
+                );
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(width: width, child: strip),
+                );
+              }
+              return strip;
             },
           ),
         ),

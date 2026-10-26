@@ -16,7 +16,7 @@ import '../data/together_play.dart';
 import 'legacy_club_components.dart';
 import 'together_booking_page.dart';
 import 'together_party_create_page.dart';
-import 'together_play_page.dart';
+import 'together_today_page.dart';
 import 'together_ticket_page.dart';
 
 class TogetherEntryPage extends StatefulWidget {
@@ -110,40 +110,11 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
         setState(() {
           city = selected;
           error = null;
-          revision++;
         });
       }
     } catch (_) {
       if (mounted) setState(() => error = '城市列表暂不可用，请重试');
     }
-  }
-
-  Future<void> _create() async {
-    final selected = city!;
-    await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (pageContext) => TogetherPartyCreatePage(
-          cityCode: selected.code,
-          cityName: selected.name,
-          onBack: () => Navigator.pop(pageContext),
-          stores: SecureTogetherStoreRepository.secure(kingclubApiBaseUrl),
-          publication: SecureTogetherPublication.secure(kingclubApiBaseUrl),
-          uploadArtwork: () async {
-            await Navigator.of(pageContext).push<void>(
-              MaterialPageRoute(
-                builder: (_) => TogetherArtworkUploadPage(
-                  repository: SecureTogetherPublication.secure(
-                    kingclubApiBaseUrl,
-                  ),
-                ),
-              ),
-            );
-            return null;
-          },
-        ),
-      ),
-    );
-    if (mounted) setState(() => revision++);
   }
 
   Future<void> _admission(TogetherParty party) =>
@@ -214,14 +185,14 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
         },
       );
     }
-    return TogetherPlayPage(
-      key: ValueKey('${selected.code}:$revision'),
+    return TogetherTodayPage(
+      key: ValueKey('today:$revision'),
       repository: repository,
       cityCode: selected.code,
       cityName: selected.name,
-      onBack: widget.onBack,
+      onHome: widget.onBack,
       onSelectCity: _chooseCity,
-      onCreate: _create,
+      stores: personalStores,
       onAdmission: _admission,
       onJoin: (party) async {
         await Navigator.of(context).push<void>(
@@ -230,7 +201,6 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
                 TogetherBookingPage(party: party, repository: repository),
           ),
         );
-        if (mounted) setState(() => revision++);
       },
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/secure_together_play_repository.dart';
+import 'package:kingclub/src/features/club/data/together_feed.dart';
 
 void main() {
   test(
@@ -83,6 +84,27 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test('Today uses one bounded cross-date call with the exact selected scope', () async {
+    final repo = SecureTogetherPlayRepository(readSession: () async => session, request: (id, p, _) async {
+      expect(id, 'K261004001985'); expect(p['view'], 'recommendations'); expect(p['limit'], 20);
+      expect(p.containsKey('startsFrom'), isFalse); expect(p['storeRef'], 'store-test');
+      return {'result': {'view': p['view'], 'cityCode': p['cityCode'], 'storeRef': p['storeRef'], 'date': p['date'],
+        'items': [row('future')], 'next': null, 'viewer': {'avatarBase64':'AQID'}}};
+    });
+    final page = await repo.feed(view: TogetherFeedView.recommendations, cityCode: '430200', storeRef: 'store-test');
+    expect(page.items.single.ref, 'future'); expect(page.avatarBytes, [1,2,3]);
+  });
+  test('feed rejects swapped scopes and stale sessions, without daily fallback', () async {
+    for (final mode in ['city','view','session','cursor']) {
+      var current = session;
+      final repo = SecureTogetherPlayRepository(readSession: () async => current, request: (_, p, _) async {
+        if (mode == 'session') current = {...session,'sessionId':'other'};
+        return {'result': {'view': mode == 'view' ? 'tickets' : p['view'], 'cityCode': mode == 'city' ? 'other-city' : p['cityCode'], 'storeRef':null,'date':null,
+          'items':[row('future')], 'next':mode == 'cursor' ? 'other' : null}};
+      });
+      await expectLater(repo.feed(view: TogetherFeedView.recommendations,cityCode:'430200'), throwsA(anything));
+    }
+  });
   test('signed collaborator position is visible before payment; merchant position stays private', () async {
     for (final kind in ['official', 'collaborator']) {
       final repo = SecureTogetherPlayRepository(

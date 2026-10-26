@@ -69,6 +69,9 @@ class TogetherParty {
     this.eligibilityReasons = const [],
     this.personalPriceMinor,
     this.confirmedCount,
+    this.bookingStatus,
+    this.bookingRef,
+    this.bookingPayableMinor,
   });
   final String ref,
       theme,
@@ -150,6 +153,9 @@ class TogetherParty {
     eligibilityReasons: eligibilityReasons,
     personalPriceMinor: personalPriceMinor,
     confirmedCount: confirmedCount,
+    bookingStatus: bookingStatus,
+    bookingRef: bookingRef,
+    bookingPayableMinor: bookingPayableMinor,
   );
 
   /// Confirmed participation; pending payment is never an admission ticket.
@@ -163,6 +169,9 @@ class TogetherParty {
   final List<String> eligibilityReasons;
   final int? personalPriceMinor;
   final int? confirmedCount;
+  final String? bookingStatus;
+  final String? bookingRef;
+  final int? bookingPayableMinor;
   int get participantCount => confirmedCount ?? participants.length;
 
   int get remaining => (capacity - participantCount).clamp(0, capacity);
