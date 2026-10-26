@@ -2267,3 +2267,12 @@ User explicitly deferred APP/API changes until UI review. Only docs/features/clu
 The corrected upper header remains at y=93 while content moves 16px, with header opacity 0.5; after 32px it is hidden and does not intercept input. Local headless Edge checks passed for menu, city, avatar and card navigation; runtime errors=0.
 
 final result: passed (design-prototype layout and fade-in-place interaction only; APP typography and native iPhone acceptance remain separate and pending).
+
+
+## 2026-10-27 Today/avatar menu specification (design only)
+
+Updated the exact four Today items and four avatar items requested by the user. Default time is recommendation, not same-day-only; store and date selection are design interactions only. Both menus return home; avatar opens a right-aligned menu instead of navigating directly. See the dated revision in [design review](docs/features/club/feature_together_play/2026-10-26-today/REVIEW.md).
+
+17 local headless Edge assertions passed, runtime errors=0. Fixed a stale selection notice overlapping the next sheet and recaptured. Only design HTML, documentation, and verification metadata changed; no APP or backend edits.
+
+final result: passed (2026-10-27 menu design prototype only, not native implementation acceptance).
