@@ -117,3 +117,9 @@ Apple已处理210为VALID；本轮仅UI/采样与测试变化，加密用途未�
 
 
 第五轮校准：用户指出主标题仍偏大；同宽实际像素复测参考中文字面约73px、210版约78px。主标题28→26，其余字号与卡片几何不变，当前历史28dp验收被此条覆盖；待211新截图测量后才能重新验收。
+
+
+第五轮源9e0d6ed1：35项定向测试通过、定向analyze无问题、diff检查通过。安卓211签名校验后覆盖安装OPPO R11st，USB读取versionCode=211；aa211-bright.png与aa211-dark.png看到缩小标题、单/双行正常，头像与卡片几何不变。Xcode Cloud211 run d063dd21-4965-4f72-b9e3-104de1dbd943已上传build b634d6ec-a457-4208-95bd-f9fa03a575f5，待Apple处理及iPhone新截图。
+
+
+211已处理VALID，沿既有加密问卷（本轮仅字号变化）登记usesNonExemptEncryption=false，加入原内部组后IN_BETA_TESTING。已请用户更新并打开，待读取实际安装版本和新截图；不把发布到TestFlight当实机验收。
