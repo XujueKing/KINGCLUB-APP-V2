@@ -7,6 +7,7 @@ import '../data/together_play.dart';
 import 'legacy_club_components.dart';
 import 'together_play_page.dart';
 import 'together_removal_page.dart';
+import 'together_activity_close.dart';
 
 String togetherActivityHeroTag(String ref) => 'together-activity-$ref';
 
@@ -93,6 +94,7 @@ class TogetherActivityPage extends StatefulWidget {
 
 class _TogetherActivityPageState extends State<TogetherActivityPage> {
   final _cardBodyKey = GlobalKey();
+  final _scroll = ScrollController();
   late TogetherParty _party = widget.party;
   bool _loading = true, _loaded = false, _acting = false, _marked = false;
   bool _started = false;
@@ -128,6 +130,7 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
 
   @override
   void dispose() {
+    _scroll.dispose();
     _routeAnimation?.removeStatusListener(_transitionChanged);
     super.dispose();
   }
@@ -224,16 +227,11 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
     return KingEdgeBackGesture(
       onBack: () => Navigator.maybePop(context),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF1C1C1E),
         body: Stack(
           children: [
-            Positioned.fill(
-              child: FadeTransition(
-                opacity: motion,
-                child: const ColoredBox(color: Color(0xFF1C1C1E)),
-              ),
-            ),
             ListView(
+              controller: _scroll,
               key: const ValueKey('together-expanded-scroll'),
               padding: EdgeInsets.zero,
               children: [
@@ -367,16 +365,12 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
               right: 16,
               child: FadeTransition(
                 opacity: contentOpacity,
-                child: IconButton(
-                  key: const ValueKey('together-close-detail'),
-                  tooltip: '关闭活动详情',
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0x66333333),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(44, 44),
-                  ),
+                child: TogetherActivityClose(
+                  source: _party.detailPosters.firstOrNull,
+                  cardKey: _cardBodyKey,
+                  scroll: _scroll,
+                  motion: motion,
                   onPressed: () => Navigator.maybePop(context),
-                  icon: const Icon(Icons.close, size: 26),
                 ),
               ),
             ),

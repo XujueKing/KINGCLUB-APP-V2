@@ -14,6 +14,33 @@ class TogetherArtworkSample {
   final Uint8List rgba;
   final File? file;
 
+  Color colorInRegion(double aspectRatio, Rect region) {
+    final factor = math.max(aspectRatio / width, 1 / height);
+    final left = (width * factor - aspectRatio) / 2;
+    final top = (height * factor - 1) / 2;
+    var red = 0.0, green = 0.0, blue = 0.0, count = 0;
+    for (var y = 0; y < height; y++) {
+      final dy = (y + .5) * factor - top;
+      if (dy < region.top || dy > region.bottom) continue;
+      for (var x = 0; x < width; x++) {
+        final dx = ((x + .5) * factor - left) / aspectRatio;
+        if (dx < region.left || dx > region.right) continue;
+        final i = (y * width + x) * 4, alpha = rgba[i + 3] / 255;
+        red += rgba[i] * alpha + 57 * (1 - alpha);
+        green += rgba[i + 1] * alpha + 50 * (1 - alpha);
+        blue += rgba[i + 2] * alpha + 41 * (1 - alpha);
+        count++;
+      }
+    }
+    if (count == 0) return const Color(0xFF1C1C1E);
+    return Color.fromARGB(
+      255,
+      (red / count).round(),
+      (green / count).round(),
+      (blue / count).round(),
+    );
+  }
+
   Color darkTextTone(double aspectRatio) {
     final factor = math.max(aspectRatio / width, 1 / height);
     final left = (width * factor - aspectRatio) / 2;
@@ -161,6 +188,11 @@ class TogetherArtworkContrast extends StatefulWidget {
   @visibleForTesting
   static Future<TogetherArtworkSample?> sampleForTesting(String source) =>
       _TogetherArtworkContrastState._load(source);
+
+  static Future<TogetherArtworkSample?> sampleForSource(String? source) =>
+      _TogetherArtworkContrastState._load(source);
+  static TogetherArtworkSample? cachedSample(String? source) =>
+      _TogetherArtworkContrastState._resolved[source];
 
   final String? source;
   final double aspectRatio;

@@ -55,7 +55,7 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
   TogetherReadHistory? _readHistory;
   File? _avatar;
   ImageProvider? _viewerAvatar;
-  String? _next, _error, _storeRef, _storeName;
+  String? _next, _error, _storeRef, _storeName, _openingRef;
   DateTime? _date;
   int _epoch = 0;
   bool _loading = true, _more = false, _navigating = false;
@@ -182,7 +182,10 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
         _cardKeys[party.ref]?.currentContext?.findRenderObject()
             as RenderRepaintBoundary?;
     if (box == null || !box.hasSize) return;
-    _navigating = true;
+    setState(() {
+      _navigating = true;
+      _openingRef = party.ref;
+    });
     ui.Image? preview;
     if (!MediaQuery.disableAnimationsOf(context)) {
       try {
@@ -191,6 +194,7 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
         await WidgetsBinding.instance.endOfFrame;
         if (!mounted || !box.attached) {
           _navigating = false;
+          if (mounted) setState(() => _openingRef = null);
           return;
         }
         preview = box.toImageSync(
@@ -235,6 +239,7 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
       if (mounted) {
         setState(() {
           _navigating = false;
+          _openingRef = null;
         });
         if (changed) await _load();
       }
@@ -544,28 +549,42 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
                 final party = _items[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 20),
-                  child: Hero(
-                    tag: togetherActivityHeroTag(party.ref),
-                    curve: Curves.linear,
-                    reverseCurve: Curves.linear,
-                    createRectTween: togetherActivityRectTween,
-                    placeholderBuilder: togetherActivityPlaceholder,
-                    transitionOnUserGestures: true,
-                    child: RepaintBoundary(
-                      key: _cardKeys.putIfAbsent(party.ref, () => GlobalKey()),
-                      child: TogetherAvailableRow(
-                        party: party,
-                        edgeInset: false,
-                        showHeading: false,
-                        showAction: true,
-                        blurFooter: false,
-                        actionLabel: _seen.contains(party.ref) ? '加入' : '查看',
-                        onTap: () => _open(party),
-                        onAction:
-                            _seen.contains(party.ref) &&
-                                (!party.canAct || party.hasAdmissionTicket)
-                            ? null
-                            : () => _action(party),
+                  child: ExcludeSemantics(
+                    excluding: _openingRef != null && _openingRef != party.ref,
+                    child: Opacity(
+                      key: ValueKey('today-card-visibility-${party.ref}'),
+                      opacity: _openingRef == null || _openingRef == party.ref
+                          ? 1
+                          : 0,
+                      child: Hero(
+                        tag: togetherActivityHeroTag(party.ref),
+                        curve: Curves.linear,
+                        reverseCurve: Curves.linear,
+                        createRectTween: togetherActivityRectTween,
+                        placeholderBuilder: togetherActivityPlaceholder,
+                        transitionOnUserGestures: true,
+                        child: RepaintBoundary(
+                          key: _cardKeys.putIfAbsent(
+                            party.ref,
+                            () => GlobalKey(),
+                          ),
+                          child: TogetherAvailableRow(
+                            party: party,
+                            edgeInset: false,
+                            showHeading: false,
+                            showAction: true,
+                            blurFooter: false,
+                            actionLabel: _seen.contains(party.ref)
+                                ? '加入'
+                                : '查看',
+                            onTap: () => _open(party),
+                            onAction:
+                                _seen.contains(party.ref) &&
+                                    (!party.canAct || party.hasAdmissionTicket)
+                                ? null
+                                : () => _action(party),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -577,8 +596,12 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
             animation: _scroll,
             child: _header(),
             builder: (context, header) {
-              final alpha = (1 - (_scroll.hasClients ? _scroll.offset : 0) / 32)
-                  .clamp(0.0, 1.0);
+              final alpha = _openingRef != null
+                  ? 0.0
+                  : (1 - (_scroll.hasClients ? _scroll.offset : 0) / 32).clamp(
+                      0.0,
+                      1.0,
+                    );
               return Positioned(
                 top: safe + 8,
                 left: 20,
@@ -589,7 +612,11 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
                     excluding: alpha <= .05,
                     child: ExcludeFocus(
                       excluding: alpha <= .05,
-                      child: Opacity(opacity: alpha, child: header),
+                      child: Opacity(
+                        key: const ValueKey('today-header-visibility'),
+                        opacity: alpha,
+                        child: header,
+                      ),
                     ),
                   ),
                 ),

@@ -17,6 +17,7 @@ class Feed implements TogetherPlayRepository, TogetherFeedRepository {
   final calls = <TogetherFeedView>[];
   final filters = <String?>[];
   bool failDetail = false;
+  bool includeOther = false;
   int detailCalls = 0;
   @override
   Future<TogetherFeedPage> feed({
@@ -30,6 +31,7 @@ class Feed implements TogetherPlayRepository, TogetherFeedRepository {
     filters.add(storeRef);
     return TogetherFeedPage([
       old.fixture(ref: 'future', day: 30, merchantHost: false),
+      if (includeOther) old.fixture(ref: 'other', day: 30, merchantHost: false),
     ], null);
   }
 
@@ -79,6 +81,49 @@ Future<void> mount(
 void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
+  });
+  testWidgets('unselected cards stay hidden through both opaque transitions', (
+    tester,
+  ) async {
+    final repo = Feed()..includeOther = true;
+    await mount(tester, repo);
+    final other = find.byKey(
+      const ValueKey('today-card-visibility-other'),
+      skipOffstage: false,
+    );
+    expect(tester.widget<Opacity>(other).opacity, 1);
+    await tester.tap(find.byKey(const ValueKey('together-join-future')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump();
+    expect(tester.widget<Opacity>(other).opacity, 0);
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(
+              const ValueKey('today-header-visibility'),
+              skipOffstage: false,
+            ),
+          )
+          .opacity,
+      0,
+    );
+    final scaffold = tester.widget<Scaffold>(
+      find.descendant(
+        of: find.byType(TogetherActivityPage),
+        matching: find.byType(Scaffold),
+      ),
+    );
+    expect(scaffold.backgroundColor?.a, 1);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('together-close-detail')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(tester.widget<Opacity>(other).opacity, 0);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Opacity>(other).opacity, 1);
+    expect(repo.calls, [TogetherFeedView.recommendations]);
+    expect(tester.takeException(), isNull);
   });
   testWidgets(
     'both card trees survive Hero handoff without remounting images',
