@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "top": {
+    "titleY": 93,
+    "avatarY": 93,
+    "cardY": 149,
+    "opacity": 1,
+    "phoneWidth": 402
+  },
+  "fade": {
+    "titleY": 93,
+    "avatarY": 93,
+    "cardY": 133,
+    "opacity": 0.5
+  },
+  "checks": [
+    "title and avatar fixed in upper layer",
+    "half opacity at 16px",
+    "content moves independently",
+    "header hidden and noninteractive after 32px",
+    "title menu",
+    "city state",
+    "Escape close",
+    "avatar entry",
+    "future activity detail",
+    "return menu"
+  ],
+  "runtimeErrors": 0
+}

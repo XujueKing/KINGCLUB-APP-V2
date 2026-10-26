@@ -2258,3 +2258,12 @@ final result: blocked（24修订已实机展示；App Store字号匹配及用户
 
 
 第六轮完整捕获已补：ios212-aa-open-confirmed.png与同宽并列ios212-card-comparison.png。大标题24单行完整，小引题/介绍左对齐，原图内边距、磨砂底栏、五个完整头像未受字号变更破坏。当前字号方案用户目测反馈待确认，历史参考匹配结论不自动恢复。
+
+
+## 2026-10-26 Today recommendation: design-only review
+
+User explicitly deferred APP/API changes until UI review. Only docs/features/club/feature_together_play/2026-10-26-today is authored. Production source drafts were restored; no deployment or database migration occurred. See [design review](docs/features/club/feature_together_play/2026-10-26-today/REVIEW.md) and its captured top/fade/scroll/menu states.
+
+The corrected upper header remains at y=93 while content moves 16px, with header opacity 0.5; after 32px it is hidden and does not intercept input. Local headless Edge checks passed for menu, city, avatar and card navigation; runtime errors=0.
+
+final result: passed (design-prototype layout and fade-in-place interaction only; APP typography and native iPhone acceptance remain separate and pending).
