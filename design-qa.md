@@ -2236,3 +2236,10 @@ final result: passed（AA卡片第四轮三层文字与自适应明暗；iPhone2
 主标题从28降至26，维持字重700、系统Display字体、1.15倍行高和4/8dp组间距；两层小字/外部标题/卡片与头像几何不改。布局测量与最终真机截图待211版本；不能用210旧图作为修复后证据。
 
 final result: blocked（等待211最终包实机重新测量）。
+
+
+第五轮211实机：USB读取1.2.0(211)，ios211-aa-review.png实际显示音乐卡片三层文字（底栏被屏幕裁切，只作为文字证据）。同1086px宽局部比较ios211-text-comparison.png：标题白色实心字行2130..2202约73px，210约78px；但不同汉字、抗锯齿阈值和白/黑背景使该单项测量不能认定整体视觉相同。用户更新后仍实测偏大，当前继续按用户反馈校准，不通过本轮验收。
+
+已核实本地Flutter text_style.dart的CupertinoSystemText/Display为Apple系统字体代理；卡片iOS使用CupertinoTheme系统字体，没有打包替换苹果字体。系统字体代理不保证与App Store内部UIKit字重/行框排版完全相同。正在确认用户指出的是图内主题、外部标题还是所有图内字号，避免误改其余层级。
+
+final result: blocked（211字号用户实测仍偏大，待明确对应文字并修正）。

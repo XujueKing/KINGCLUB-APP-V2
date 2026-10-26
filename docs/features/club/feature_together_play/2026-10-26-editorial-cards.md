@@ -123,3 +123,6 @@ Apple已处理210为VALID；本轮仅UI/采样与测试变化，加密用途未�
 
 
 211已处理VALID，沿既有加密问卷（本轮仅字号变化）登记usesNonExemptEncryption=false，加入原内部组后IN_BETA_TESTING。已请用户更新并打开，待读取实际安装版本和新截图；不把发布到TestFlight当实机验收。
+
+
+211 USB实际安装与文字截图已取得，局部字面高度约73px，但用户反馈测量仍偏大；单项像素阈值结果不足以判定视觉匹配，当前继续校准，未验收通过。iOS使用CupertinoSystemDisplay/Text系统字体代理，明确保留系统中文回退，非另行打包字体。待用户指出偏大的文字范围，再按范围调整。
