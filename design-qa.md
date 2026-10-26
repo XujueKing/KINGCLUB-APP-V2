@@ -2276,3 +2276,10 @@ Updated the exact four Today items and four avatar items requested by the user. 
 17 local headless Edge assertions passed, runtime errors=0. Fixed a stale selection notice overlapping the next sheet and recaptured. Only design HTML, documentation, and verification metadata changed; no APP or backend edits.
 
 final result: passed (2026-10-27 menu design prototype only, not native implementation acceptance).
+# 2026-10-27 — Today design: existing back arrow and unused invitation tickets
+
+- Scope: local design HTML and documentation only; no APP, API, database or signing changes.
+- Reference: existing KingBackButton / kingAppBar and TogetherPartyCard source, read only.
+- Changes: original back.png arrow with 48px target and centered 17px title on inner pages; unused invitation tickets reuse the original horizontal gradient ticket structure and font assets.
+- Evidence: 22 headless Edge checks passed, zero runtime exceptions; local unused-tickets.png visually reviewed. Sample ticket has no valid redemption code. Existing Today fade and both menus still pass.
+- Result: passed for design review; device font parity and live ticket behavior are not claimed.
