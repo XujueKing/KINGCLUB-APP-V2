@@ -827,6 +827,20 @@ class TogetherAvailableRow extends StatelessWidget {
                       fit: BoxFit.cover,
                       cacheWidth: decodeWidth,
                     )
+                  : ink.posterFile != null
+                  ? Image.file(
+                      ink.posterFile!,
+                      key: ValueKey(poster),
+                      fit: BoxFit.cover,
+                      cacheWidth: decodeWidth,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, _, _) => CachedMediaImage(
+                        poster,
+                        fit: BoxFit.cover,
+                        cacheWidth: decodeWidth,
+                        placeholder: const SizedBox.shrink(),
+                      ),
+                    )
                   : CachedMediaImage(
                       poster,
                       fit: BoxFit.cover,

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/formatters/money.dart';
 
@@ -53,7 +55,7 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
   TogetherReadHistory? _readHistory;
   File? _avatar;
   ImageProvider? _viewerAvatar;
-  String? _next, _error, _storeRef, _storeName, _opening;
+  String? _next, _error, _storeRef, _storeName;
   DateTime? _date;
   int _epoch = 0;
   bool _loading = true, _more = false, _navigating = false;
@@ -177,18 +179,36 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
   Future<void> _open(TogetherParty party) async {
     if (_navigating) return;
     final box =
-        _cardKeys[party.ref]?.currentContext?.findRenderObject() as RenderBox?;
+        _cardKeys[party.ref]?.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
     if (box == null || !box.hasSize) return;
-    final origin = box.localToGlobal(Offset.zero) & box.size;
-    setState(() {
-      _navigating = true;
-      _opening = party.ref;
-    });
+    _navigating = true;
+    ui.Image? preview;
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      try {
+        // A pressed InkWell may need its last paint before capture. Only the
+        // already visible card is captured; no I/O or full-screen screenshot.
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || !box.attached) {
+          _navigating = false;
+          return;
+        }
+        preview = box.toImageSync(
+          pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
+        );
+      } catch (_) {
+        // The fixed-size Hero child remains a valid non-capture fallback.
+      }
+    }
+    if (!mounted) {
+      preview?.dispose();
+      return;
+    }
     var changed = false;
     try {
       await openTogetherActivity(
         context,
-        origin: origin,
+        previewImage: preview,
         party: party,
         repository: widget.repository,
         onJoin: (value) async {
@@ -214,7 +234,6 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
     } finally {
       if (mounted) {
         setState(() {
-          _opening = null;
           _navigating = false;
         });
         if (changed) await _load();
@@ -525,9 +544,14 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
                 final party = _items[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 20),
-                  child: Opacity(
-                    opacity: _opening == party.ref ? 0 : 1,
-                    child: SizedBox(
+                  child: Hero(
+                    tag: togetherActivityHeroTag(party.ref),
+                    curve: Curves.linear,
+                    reverseCurve: Curves.linear,
+                    createRectTween: togetherActivityRectTween,
+                    placeholderBuilder: togetherActivityPlaceholder,
+                    transitionOnUserGestures: true,
+                    child: RepaintBoundary(
                       key: _cardKeys.putIfAbsent(party.ref, () => GlobalKey()),
                       child: TogetherAvailableRow(
                         party: party,

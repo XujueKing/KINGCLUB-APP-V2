@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,9 +9,10 @@ import '../../../core/media/media_cache.dart';
 
 /// Samples the displayed text region, rather than the unrelated top of a poster.
 class TogetherArtworkSample {
-  const TogetherArtworkSample(this.width, this.height, this.rgba);
+  const TogetherArtworkSample(this.width, this.height, this.rgba, {this.file});
   final int width, height;
   final Uint8List rgba;
+  final File? file;
 
   Color footerTint(double aspectRatio, {required bool blackText}) {
     final factor = math.max(aspectRatio / width, 1 / height);
@@ -85,9 +87,11 @@ class TogetherArtworkInk {
     this.black = false,
     this.ready = true,
     this.footerColor,
+    this.posterFile,
   });
   final bool black, ready;
   final Color? footerColor;
+  final File? posterFile;
   Color get flatFooter =>
       footerColor ??
       (black ? const Color(0xDDC0B9AC) : const Color(0xDD302B30));
@@ -153,6 +157,7 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
     pending = Future<TogetherArtworkSample?>(() async {
       try {
         final Uint8List bytes;
+        File? file;
         if (source.startsWith('assets/')) {
           final data = await rootBundle.load(source);
           bytes = data.buffer.asUint8List(
@@ -160,10 +165,8 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
             data.lengthInBytes,
           );
         } else {
-          bytes = await (await MediaCache.shared.get(
-            source,
-            scope: 'public',
-          )).readAsBytes();
+          file = await MediaCache.shared.get(source, scope: 'public');
+          bytes = await file.readAsBytes();
         }
         final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
         try {
@@ -191,6 +194,7 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
                     data.offsetInBytes,
                     data.lengthInBytes,
                   ),
+                  file: file,
                 );
                 if (identical(_samples[source], pending)) {
                   _resolved[source] = sample;
@@ -226,6 +230,7 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
     builder: (context, snapshot) => widget.builder(
       context,
       TogetherArtworkInk(
+        posterFile: snapshot.data?.file,
         ready:
             widget.source == null ||
             snapshot.hasData ||

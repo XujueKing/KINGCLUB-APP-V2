@@ -8,6 +8,7 @@ import 'package:kingclub/src/features/club/data/together_play.dart';
 import 'package:kingclub/src/features/club/data/together_read_history.dart';
 import 'package:kingclub/src/features/club/presentation/together_today_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_activity_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_artwork_contrast.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
 
 import 'together_play_test.dart' as old;
@@ -79,6 +80,29 @@ void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
   });
+  testWidgets(
+    'both card trees survive Hero handoff without remounting images',
+    (tester) async {
+      final repo = Feed();
+      await mount(tester, repo);
+      final cards = find.byType(TogetherArtworkContrast, skipOffstage: false);
+      final source = tester.state(cards);
+      await tester.tap(find.byKey(const ValueKey('together-join-future')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      await tester.pump();
+      final states = tester.stateList(cards).toList();
+      expect(states, hasLength(2));
+      expect(states, contains(same(source)));
+      final target = states.singleWhere((state) => !identical(state, source));
+      await tester.pumpAndSettle();
+      expect(tester.stateList(cards), contains(same(target)));
+      await tester.tap(find.byKey(const ValueKey('together-close-detail')));
+      await tester.pumpAndSettle();
+      expect(tester.state(cards), same(source));
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('expansion keeps content without blur or loading indicators', (
     tester,
   ) async {
@@ -87,7 +111,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('together-join-future')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 180));
+    await tester.pump();
     expect(repo.detailCalls, 0);
+    expect(find.text('参加须知'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('together-card-flight-image')),
+      findsOneWidget,
+    );
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(
@@ -98,10 +128,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(repo.detailCalls, 1);
+    expect(find.text('参加须知'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('together-close-detail')));
     await tester.pumpAndSettle();
     expect(repo.calls, [TogetherFeedView.recommendations]);
     expect(find.text('加入'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('together-card-flight-image')),
+      findsNothing,
+    );
   });
   testWidgets(
     'Today uses cross-date feed and menu preserves exact classification',
