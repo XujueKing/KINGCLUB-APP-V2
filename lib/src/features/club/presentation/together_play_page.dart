@@ -17,7 +17,7 @@ import 'positioning_card_label.dart';
 import 'together_date_picker.dart';
 import 'together_ticket_page.dart';
 import 'together_artwork_contrast.dart';
-import 'together_glass.dart';
+import 'together_activity_action.dart';
 import 'together_removal_page.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -772,18 +772,12 @@ class TogetherAvailableRow extends StatelessWidget {
     this.expanded = false,
     this.showAction = false,
     this.blurFooter = true,
-    this.blurAction = true,
   });
   final TogetherParty party;
   final VoidCallback onTap;
   final VoidCallback? onAction;
   final String actionLabel;
-  final bool showHeading,
-      edgeInset,
-      expanded,
-      showAction,
-      blurFooter,
-      blurAction;
+  final bool showHeading, edgeInset, expanded, showAction, blurFooter;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -800,6 +794,7 @@ class TogetherAvailableRow extends StatelessWidget {
           source: poster,
           aspectRatio: 353 / 435,
           builder: (context, ink) {
+            final footer = TogetherFooterPalette(ink.flatFooter);
             final cupertino = CupertinoTheme.of(context).textTheme;
             final ios = Theme.of(context).platform == TargetPlatform.iOS;
             TextStyle textStyle(
@@ -1001,148 +996,136 @@ class TogetherAvailableRow extends StatelessWidget {
                                     sigmaX: 12,
                                     sigmaY: 12,
                                   ),
-                                  child: ColoredBox(
-                                    color: blurFooter
-                                        ? ink.glass
-                                        : ink.flatFooter,
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: inset,
-                                        vertical: 15 * scale,
-                                      ),
-                                      child: summary
-                                          ? Row(
-                                              key: ValueKey(
-                                                'together-summary-footer-${party.ref}',
-                                              ),
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        10 * scale,
-                                                      ),
-                                                  child: artwork(
-                                                    size: 48 * scale,
-                                                  ),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      minHeight: 80,
+                                    ),
+                                    child: ColoredBox(
+                                      color: blurFooter
+                                          ? ink.glass
+                                          : ink.flatFooter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 12,
+                                        ),
+                                        child: summary
+                                            ? Row(
+                                                key: ValueKey(
+                                                  'together-summary-footer-${party.ref}',
                                                 ),
-                                                SizedBox(width: 10 * scale),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        party.theme,
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: textStyle(
-                                                          16,
-                                                          weight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      ),
-                                                      SizedBox(
-                                                        height: 3 * scale,
-                                                      ),
-                                                      Text(
-                                                        party.priceLabel,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: textStyle(
-                                                          13,
-                                                          color: ink.secondary,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                SizedBox(width: 10 * scale),
-                                                TogetherGlassAction(
-                                                  key: ValueKey(
-                                                    'together-summary-open-${party.ref}',
-                                                  ),
-                                                  ink: TogetherGlassInk(
-                                                    ink.flatFooter.withValues(
-                                                      alpha: 1,
-                                                    ),
-                                                  ),
-                                                  blur: blurAction,
-                                                  onPressed: showAction
-                                                      ? onAction
-                                                      : onAction ?? onTap,
-                                                  label: actionLabel,
-                                                  minimumSize: Size(
-                                                    72 * scale,
-                                                    32 * scale,
-                                                  ),
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 14 * scale,
-                                                    vertical: 6 * scale,
-                                                  ),
-                                                  textStyle: textStyle(
-                                                    16,
-                                                    weight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : Row(
-                                              children: [
-                                                Expanded(
-                                                  child: TogetherParticipants(
+                                                children: [
+                                                  ClipRRect(
                                                     key: ValueKey(
-                                                      'together-seats-footer-${party.ref}',
+                                                      'together-summary-icon-${party.ref}',
                                                     ),
-                                                    party: party,
-                                                    showCount: false,
-                                                    seatSize: 48 * scale,
-                                                    seatGap:
-                                                        ((constraints.maxWidth -
-                                                                    2 * inset -
-                                                                    5 *
-                                                                        48 *
-                                                                        scale) /
-                                                                4)
-                                                            .clamp(0.0, 30.0),
-                                                    iconHeight: 28 * scale,
-                                                    singleRow: true,
-                                                    maxSeats: showAction
-                                                        ? 20
-                                                        : null,
-                                                    cornerRadius: 11 * scale,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                    child: artwork(size: 48),
                                                   ),
-                                                ),
-                                                if (onAction != null ||
-                                                    showAction) ...[
-                                                  const SizedBox(width: 12),
-                                                  TogetherGlassAction(
+                                                  SizedBox(width: 10),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          party.theme,
+                                                          key: ValueKey(
+                                                            'together-summary-title-${party.ref}',
+                                                          ),
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              textStyle(
+                                                                16,
+                                                                color: footer
+                                                                    .primary,
+                                                                weight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                height: 1.15,
+                                                              ).copyWith(
+                                                                fontSize: 16,
+                                                              ),
+                                                        ),
+                                                        SizedBox(height: 2),
+                                                        Text(
+                                                          party.priceLabel,
+                                                          key: ValueKey(
+                                                            'together-summary-subtitle-${party.ref}',
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              textStyle(
+                                                                13,
+                                                                color: footer
+                                                                    .secondary,
+                                                              ).copyWith(
+                                                                fontSize: 13,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 10),
+                                                  TogetherActivityAction(
                                                     key: ValueKey(
-                                                      'together-join-${party.ref}',
+                                                      'together-summary-open-${party.ref}',
                                                     ),
-                                                    ink: TogetherGlassInk(
-                                                      ink.flatFooter.withValues(
-                                                        alpha: 1,
-                                                      ),
-                                                    ),
-                                                    blur: blurAction,
-                                                    onPressed: onAction,
+                                                    palette: footer,
+                                                    onPressed: showAction
+                                                        ? onAction
+                                                        : onAction ?? onTap,
                                                     label: actionLabel,
-                                                    minimumSize: const Size(
-                                                      72,
-                                                      44,
-                                                    ),
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
                                                   ),
                                                 ],
-                                              ],
-                                            ),
+                                              )
+                                            : Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: TogetherParticipants(
+                                                      key: ValueKey(
+                                                        'together-seats-footer-${party.ref}',
+                                                      ),
+                                                      party: party,
+                                                      showCount: false,
+                                                      seatSize: 48,
+                                                      seatGap:
+                                                          ((constraints.maxWidth -
+                                                                      40 -
+                                                                      5 * 48) /
+                                                                  4)
+                                                              .clamp(0.0, 30.0),
+                                                      iconHeight: 28,
+                                                      singleRow: true,
+                                                      maxSeats: showAction
+                                                          ? 20
+                                                          : null,
+                                                      cornerRadius: 11,
+                                                    ),
+                                                  ),
+                                                  if (onAction != null ||
+                                                      showAction) ...[
+                                                    const SizedBox(width: 12),
+                                                    TogetherActivityAction(
+                                                      key: ValueKey(
+                                                        'together-join-${party.ref}',
+                                                      ),
+                                                      palette: footer,
+                                                      onPressed: onAction,
+                                                      label: actionLabel,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -1,0 +1,77 @@
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
+import 'package:flutter/material.dart';
+
+/// App Store-style footer colors come from the footer, independently of the
+/// poster headline. Warm artwork retains white labels; pale cool artwork gets
+/// dark metadata and a slate-colored action. There is no live blur or border.
+class TogetherFooterPalette {
+  TogetherFooterPalette(Color background) {
+    final opaque = background.withValues(alpha: 1);
+    final tone = HSLColor.fromColor(opaque);
+    final light = opaque.computeLuminance() >= .52;
+    primary = light ? const Color(0xFF080A0C) : Colors.white;
+    secondary = primary.withValues(alpha: .6);
+    if (light) {
+      action = tone
+          .withSaturation(tone.saturation * .3)
+          .withLightness(.47)
+          .toColor();
+    } else {
+      action = Color.alphaBlend(Colors.white.withValues(alpha: .28), opaque);
+    }
+    actionText = action.computeLuminance() > .65
+        ? const Color(0xFF151515)
+        : Colors.white;
+  }
+  late final Color primary, secondary, action, actionText;
+}
+
+class TogetherActivityAction extends StatelessWidget {
+  const TogetherActivityAction({
+    super.key,
+    required this.palette,
+    required this.label,
+    required this.onPressed,
+  });
+  final TogetherFooterPalette palette;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final system = Theme.of(context).platform == TargetPlatform.iOS
+        ? CupertinoTheme.of(context).textTheme.textStyle
+        : const TextStyle();
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: palette.actionText,
+        disabledForegroundColor: palette.actionText.withValues(alpha: .4),
+        minimumSize: const Size(74, 44),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: const StadiumBorder(),
+        textStyle: system.copyWith(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+          letterSpacing: 0,
+        ),
+      ),
+      child: DecoratedBox(
+        key: const ValueKey('together-action-pill'),
+        decoration: BoxDecoration(
+          color: palette.action,
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 74, minHeight: 32),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: Text(label, textAlign: TextAlign.center),
+          ),
+        ),
+      ),
+    );
+  }
+}
