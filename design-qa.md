@@ -2243,3 +2243,10 @@ final result: blocked（等待211最终包实机重新测量）。
 已核实本地Flutter text_style.dart的CupertinoSystemText/Display为Apple系统字体代理；卡片iOS使用CupertinoTheme系统字体，没有打包替换苹果字体。系统字体代理不保证与App Store内部UIKit字重/行框排版完全相同。正在确认用户指出的是图内主题、外部标题还是所有图内字号，避免误改其余层级。
 
 final result: blocked（211字号用户实测仍偏大，待明确对应文字并修正）。
+
+
+# 2026-10-26 第六轮：限定图内主题字号
+
+用户确认偏大范围仅图内大标题。当前26→24，字重/字体/辅助字/外部标题/卡片几何保持。继续使用同字号做长标题断行测量，避免布局测量和实际字形不一致；待212最终截图及用户复核。
+
+final result: blocked（212新字号待实机复核）。

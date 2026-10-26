@@ -834,7 +834,7 @@ void main() {
     expect(subtitle.style!.fontSize, closeTo(13, .1));
     expect(kicker.style!.color!.a, closeTo(.6, .01));
     expect(subtitle.style!.color!.a, closeTo(.6, .01));
-    expect(heading.style!.fontSize, closeTo(26, .1));
+    expect(heading.style!.fontSize, closeTo(24, .1));
     expect(heading.style!.fontFamily, 'CupertinoSystemDisplay');
     final hero = tester.getRect(
       find.byKey(const ValueKey('together-artwork-region-night')),

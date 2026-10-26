@@ -905,7 +905,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                         togetherEditorialHeadline(
                                           party.theme,
                                           textStyle(
-                                            26,
+                                            24,
                                             weight: FontWeight.w700,
                                             height: 1.15,
                                           ),
@@ -920,7 +920,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: textStyle(
-                                          26,
+                                          24,
                                           weight: FontWeight.w700,
                                           height: 1.15,
                                         ),
