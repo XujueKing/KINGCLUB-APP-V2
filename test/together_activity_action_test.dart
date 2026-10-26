@@ -12,9 +12,12 @@ void main() {
       final orange = TogetherFooterPalette(const Color(0xFFE98F23));
       final ice = TogetherFooterPalette(const Color(0xFFD6DDE5));
       final brown = TogetherFooterPalette(const Color(0xFF40392F));
+      final pink = TogetherFooterPalette(const Color(0xFFD59DB2));
       expect(orange.primary, Colors.white);
       expect(brown.primary, Colors.white);
       expect(ice.primary.computeLuminance(), lessThan(.02));
+      expect(pink.primary.computeLuminance(), lessThan(.02));
+      expect(pink.action.computeLuminance(), lessThan(.25));
       expect(
         orange.action.computeLuminance(),
         greaterThan(const Color(0xFFE98F23).computeLuminance()),
@@ -59,9 +62,13 @@ void main() {
         .style!
         .textStyle!
         .resolve({})!;
-    expect(textStyle.fontSize, 17);
+    expect(textStyle.fontSize, 15);
     expect(textStyle.fontWeight, FontWeight.w600);
     expect(textStyle.fontFamily, 'CupertinoSystemText');
+    expect(
+      tester.getRect(find.text('加入')).center.dy,
+      closeTo(tester.getRect(pill).center.dy, .01),
+    );
     await tester.tap(button);
     expect(taps, 0);
     await mount(true);

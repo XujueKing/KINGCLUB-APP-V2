@@ -8,7 +8,12 @@ class TogetherFooterPalette {
   TogetherFooterPalette(Color background) {
     final opaque = background.withValues(alpha: 1);
     final tone = HSLColor.fromColor(opaque);
-    final light = opaque.computeLuminance() >= .52;
+    final luminance = opaque.computeLuminance();
+    // Pale pink and pale blue both need the dark action. Saturated warm
+    // artwork (the orange reference) keeps a lighter action with white text.
+    final light =
+        luminance >= .62 ||
+        (luminance >= .24 && HSVColor.fromColor(opaque).saturation <= .5);
     primary = light ? const Color(0xFF080A0C) : Colors.white;
     secondary = primary.withValues(alpha: .6);
     if (light) {
@@ -52,7 +57,7 @@ class TogetherActivityAction extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const StadiumBorder(),
         textStyle: system.copyWith(
-          fontSize: 17,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
           height: 1.2,
           letterSpacing: 0,
@@ -68,7 +73,11 @@ class TogetherActivityAction extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 74, minHeight: 32),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            child: Text(label, textAlign: TextAlign.center),
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Text(label, textAlign: TextAlign.center),
+            ),
           ),
         ),
       ),
