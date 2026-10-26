@@ -207,6 +207,7 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
                   showHeading: false,
                   showAction: true,
                   blurFooter: false,
+                  blurAction: false,
                 ),
               ),
             ),

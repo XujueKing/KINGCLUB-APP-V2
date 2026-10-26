@@ -1,10 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/presentation/together_activity_close.dart';
+import 'package:kingclub/src/features/club/presentation/together_glass.dart';
 
 import 'together_artwork_contrast_test.dart' as artwork;
 
 void main() {
+  testWidgets(
+    'glass action keeps disabled gating and an enabled purchase tap',
+    (tester) async {
+      var joins = 0;
+      Future<void> mount(bool enabled) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: TogetherGlassAction(
+                ink: TogetherGlassInk(const Color(0xFFF5F48B)),
+                label: '加入',
+                onPressed: enabled ? () => joins++ : null,
+                minimumSize: const Size(72, 44),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await mount(false);
+      await tester.tap(find.text('加入'));
+      expect(joins, 0);
+      expect(
+        tester.widget<TextButton>(find.byType(TextButton)).enabled,
+        isFalse,
+      );
+      expect(
+        tester.getSize(find.byType(TextButton)).height,
+        greaterThanOrEqualTo(44),
+      );
+      await mount(true);
+      await tester.tap(find.text('加入'));
+      expect(joins, 1);
+      expect(
+        tester.widget<BackdropFilter>(find.byType(BackdropFilter)).enabled,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test(
     'glass tint and X contrast adapt to bright yellow and blue backgrounds',
     () {

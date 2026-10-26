@@ -729,7 +729,8 @@ void main() {
         expect(find.text('商家发起 · ${party.hostName}'), findsNothing);
         expect(find.text(party.theme), findsNWidgets(3));
         expect(find.text(party.rules), findsNothing);
-        expect(find.byType(BackdropFilter), findsOneWidget);
+        // Footer plus the bounded glass action; no second full-card filter.
+        expect(find.byType(BackdropFilter), findsNWidgets(2));
         expect(find.text(party.priceLabel), findsOneWidget);
         final action = find.byKey(
           const ValueKey('together-invitation-action-night'),

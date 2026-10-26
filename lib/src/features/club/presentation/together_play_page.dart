@@ -17,6 +17,7 @@ import 'positioning_card_label.dart';
 import 'together_date_picker.dart';
 import 'together_ticket_page.dart';
 import 'together_artwork_contrast.dart';
+import 'together_glass.dart';
 import 'together_removal_page.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -771,12 +772,18 @@ class TogetherAvailableRow extends StatelessWidget {
     this.expanded = false,
     this.showAction = false,
     this.blurFooter = true,
+    this.blurAction = true,
   });
   final TogetherParty party;
   final VoidCallback onTap;
   final VoidCallback? onAction;
   final String actionLabel;
-  final bool showHeading, edgeInset, expanded, showAction, blurFooter;
+  final bool showHeading,
+      edgeInset,
+      expanded,
+      showAction,
+      blurFooter,
+      blurAction;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1053,47 +1060,32 @@ class TogetherAvailableRow extends StatelessWidget {
                                                   ),
                                                 ),
                                                 SizedBox(width: 10 * scale),
-                                                TextButton(
+                                                TogetherGlassAction(
                                                   key: ValueKey(
                                                     'together-summary-open-${party.ref}',
                                                   ),
+                                                  ink: TogetherGlassInk(
+                                                    ink.flatFooter.withValues(
+                                                      alpha: 1,
+                                                    ),
+                                                  ),
+                                                  blur: blurAction,
                                                   onPressed: showAction
                                                       ? onAction
                                                       : onAction ?? onTap,
-                                                  style: TextButton.styleFrom(
-                                                    foregroundColor:
-                                                        Colors.white,
-                                                    backgroundColor: ink.black
-                                                        ? Colors.black
-                                                              .withValues(
-                                                                alpha: .42,
-                                                              )
-                                                        : Colors.white
-                                                              .withValues(
-                                                                alpha: .22,
-                                                              ),
-                                                    minimumSize: Size(
-                                                      72 * scale,
-                                                      32 * scale,
-                                                    ),
-                                                    tapTargetSize:
-                                                        MaterialTapTargetSize
-                                                            .padded,
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal:
-                                                              14 * scale,
-                                                          vertical: 6 * scale,
-                                                        ),
-                                                    shape:
-                                                        const StadiumBorder(),
-                                                    textStyle: textStyle(
-                                                      16,
-                                                      weight: FontWeight.w600,
-                                                      color: Colors.white,
-                                                    ),
+                                                  label: actionLabel,
+                                                  minimumSize: Size(
+                                                    72 * scale,
+                                                    32 * scale,
                                                   ),
-                                                  child: Text(actionLabel),
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 14 * scale,
+                                                    vertical: 6 * scale,
+                                                  ),
+                                                  textStyle: textStyle(
+                                                    16,
+                                                    weight: FontWeight.w600,
+                                                  ),
                                                 ),
                                               ],
                                             )
@@ -1126,24 +1118,27 @@ class TogetherAvailableRow extends StatelessWidget {
                                                 if (onAction != null ||
                                                     showAction) ...[
                                                   const SizedBox(width: 12),
-                                                  TextButton(
+                                                  TogetherGlassAction(
                                                     key: ValueKey(
                                                       'together-join-${party.ref}',
                                                     ),
-                                                    onPressed: onAction,
-                                                    style: TextButton.styleFrom(
-                                                      foregroundColor:
-                                                          ink.primary,
-                                                      backgroundColor:
-                                                          ink.glass,
-                                                      minimumSize: const Size(
-                                                        72,
-                                                        44,
+                                                    ink: TogetherGlassInk(
+                                                      ink.flatFooter.withValues(
+                                                        alpha: 1,
                                                       ),
-                                                      shape:
-                                                          const StadiumBorder(),
                                                     ),
-                                                    child: Text(actionLabel),
+                                                    blur: blurAction,
+                                                    onPressed: onAction,
+                                                    label: actionLabel,
+                                                    minimumSize: const Size(
+                                                      72,
+                                                      44,
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 8,
+                                                        ),
                                                   ),
                                                 ],
                                               ],
