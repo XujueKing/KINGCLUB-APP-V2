@@ -11,6 +11,7 @@ import 'package:kingclub/src/features/club/presentation/together_activity_page.d
 import 'package:kingclub/src/features/club/presentation/together_artwork_contrast.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_activity_action.dart';
+import 'package:kingclub/src/features/club/presentation/together_seat_cards.dart';
 
 import 'together_play_test.dart' as old;
 
@@ -172,13 +173,13 @@ void main() {
           matching: find.byKey(const ValueKey('together-action-pill')),
         );
         expect(tester.getRect(button).size, before.size);
-        final seats = tester.widget<TogetherParticipants>(
+        final seats = tester.widget<TogetherMemberAvatar>(
           find.descendant(
             of: flight,
-            matching: find.byType(TogetherParticipants),
+            matching: find.byType(TogetherMemberAvatar),
           ),
         );
-        expect(seats.seatSize, 48);
+        expect(seats.size, 48);
         final title = tester.widget<Text>(
           find.descendant(
             of: flight,
@@ -204,7 +205,7 @@ void main() {
               .getRect(
                 find.descendant(
                   of: flight,
-                  matching: find.byKey(const ValueKey('seat-future-0')),
+                  matching: find.byType(TogetherMemberAvatar),
                 ),
               )
               .size,

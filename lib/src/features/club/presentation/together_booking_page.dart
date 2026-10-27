@@ -16,6 +16,7 @@ import '../data/secure_together_play_repository.dart';
 import '../data/together_play.dart';
 import 'legacy_club_components.dart';
 import 'together_ticket_page.dart';
+import 'together_seat_picker.dart';
 
 class TogetherBookingPage extends StatefulWidget {
   const TogetherBookingPage({
@@ -42,6 +43,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
               IosWechatPayment.enabled));
   final requestRef = const Uuid().v4();
   TogetherBooking? booking;
+  TogetherSeatChoice? seatChoice;
   bool busy = false;
   String? error;
   String method = 'store_balance';
@@ -149,6 +151,11 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
                     'TOGETHER_GENDER_FULL',
                     'TOGETHER_NOT_PAYABLE',
                     'TOGETHER_PAYMENT_METHOD',
+                    'ACTIVITY_SEAT_TAKEN',
+                    'ACTIVITY_SEAT_RECONCILE_REQUIRED',
+                    'ACTIVITY_SEAT_UNAVAILABLE',
+                    'ACTIVITY_SEAT_GENDER_REQUIRED',
+                    'ACTIVITY_SEAT_STATE',
                   }.contains(e.code));
           error = e is AuthFailure ? e.message : '未能确认付款结果';
         });
@@ -185,9 +192,19 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
       error = null;
     });
     try {
+      if (widget.party.tables.isNotEmpty && seatChoice == null) {
+        final value = await showTogetherSeatPicker(context, widget.party);
+        if (!mounted) return;
+        if (value == null) {
+          Navigator.pop(context);
+          return;
+        }
+        seatChoice = value;
+      }
       final result = await widget.repository.prepareBooking(
         widget.party.ref,
         requestRef: requestRef,
+        seatChoice: seatChoice,
       );
       final available = result.status == 'pending'
           ? await widget.repository.coupons(result, widget.party.storeRef)
@@ -210,6 +227,25 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> _changeSeat() async {
+    if (busy || uncertain || booking?.status != 'pending') return;
+    setState(() => busy = true);
+    try {
+      final fresh = await widget.repository.detail(widget.party.ref);
+      if (!mounted) return;
+      final choice = await showTogetherSeatPicker(context, fresh);
+      if (!mounted || choice == null) return;
+      setState(() => seatChoice = choice);
+    } catch (e) {
+      if (mounted) {
+        setState(() => error = e is AuthFailure ? e.message : '暂时无法读取座位');
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (mounted) await _prepare();
   }
 
   @override
@@ -281,6 +317,23 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
         ),
         const SizedBox(height: 12),
         Text(widget.party.storeName, style: const TextStyle(color: legacyGold)),
+        if (seatChoice != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              seatChoice!.tableRef == null
+                  ? '系统随机分配座位'
+                  : '自选座位 · ${widget.party.tables.firstWhere((t) => t.ref == seatChoice!.tableRef).name}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+        if (widget.party.tables.isNotEmpty &&
+            booking?.status == 'pending' &&
+            !uncertain)
+          TextButton(
+            onPressed: busy ? null : _changeSeat,
+            child: const Text('重新选择座位'),
+          ),
         const SizedBox(height: 24),
         if (busy)
           const Center(child: CircularProgressIndicator(color: legacyGold)),

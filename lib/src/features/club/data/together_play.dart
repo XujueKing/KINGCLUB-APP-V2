@@ -23,6 +23,8 @@ class TogetherParticipant {
     this.seatIndex,
     this.avatarBytes,
     this.isMe = false,
+    this.account,
+    this.tableRef,
   });
   final String name;
   final String? avatar;
@@ -30,6 +32,37 @@ class TogetherParticipant {
   final int? seatIndex;
   final Uint8List? avatarBytes;
   final bool isMe;
+  final String? account, tableRef;
+}
+
+class TogetherActivityTable {
+  const TogetherActivityTable({
+    required this.ref,
+    required this.name,
+    required this.capacity,
+    required this.maleSeats,
+    required this.femaleSeats,
+    this.participants = const [],
+    this.reservedSeats = const [],
+    this.genderRestricted = true,
+  });
+  final String ref, name;
+  final int capacity, maleSeats, femaleSeats;
+  final List<TogetherParticipant> participants;
+  final List<int> reservedSeats;
+  final bool genderRestricted;
+}
+
+class TogetherSeatChoice {
+  const TogetherSeatChoice.random() : tableRef = null, seatIndex = null;
+  const TogetherSeatChoice.selected(this.tableRef, this.seatIndex);
+  final String? tableRef;
+  final int? seatIndex;
+  Map<String, dynamic> toJson() => {
+    'mode': tableRef == null ? 'random' : 'selected',
+    if (tableRef != null) 'tableRef': tableRef,
+    if (seatIndex != null) 'seatIndex': seatIndex,
+  };
 }
 
 /// Read projection. Prices, membership state and capacity come from the service.
@@ -72,6 +105,13 @@ class TogetherParty {
     this.bookingStatus,
     this.bookingRef,
     this.bookingPayableMinor,
+    this.hostAvatar,
+    this.hostIntroduction = '',
+    this.tables = const [],
+    this.myGender = TogetherGender.unspecified,
+    this.seatChangePending = false,
+    this.hostAvatarBytes,
+    this.seatRequests = const [],
   });
   final String ref,
       theme,
@@ -105,6 +145,13 @@ class TogetherParty {
 
   /// Merchant-provided image reference; never assume every store is KING.
   final String? storeLogo;
+  final String? hostAvatar;
+  final String hostIntroduction;
+  final List<TogetherActivityTable> tables;
+  final TogetherGender myGender;
+  final bool seatChangePending;
+  final Uint8List? hostAvatarBytes;
+  final List<Map<String, dynamic>> seatRequests;
 
   /// Server-assigned position. Signed collaborator positions are public before
   /// purchase; merchant blind positions are disclosed after confirmation only.
@@ -142,6 +189,13 @@ class TogetherParty {
     posterUrl: posterUrl,
     posterUrls: posterUrls,
     storeLogo: storeLogo,
+    hostAvatar: hostAvatar,
+    hostIntroduction: hostIntroduction,
+    tables: tables,
+    myGender: myGender,
+    seatChangePending: seatChangePending,
+    hostAvatarBytes: hostAvatarBytes,
+    seatRequests: seatRequests,
     assignedTable: assignedTable,
     ticketNumber: number,
     admissionCode: code,

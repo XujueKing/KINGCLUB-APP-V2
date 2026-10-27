@@ -18,6 +18,7 @@ import 'together_date_picker.dart';
 import 'together_ticket_page.dart';
 import 'together_artwork_contrast.dart';
 import 'together_activity_action.dart';
+import 'together_seat_cards.dart';
 import 'together_removal_page.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -789,7 +790,9 @@ class TogetherAvailableRow extends StatelessWidget {
         const scale = 1.0;
         final inset = 20 * scale;
         final poster = party.detailPosters.firstOrNull;
-        final summary = party.merchantHost;
+        final summary = showAction
+            ? party.participantCount < 10
+            : party.merchantHost;
         return TogetherArtworkContrast(
           source: poster,
           aspectRatio: 353 / 435,
@@ -1023,7 +1026,33 @@ class TogetherAvailableRow extends StatelessWidget {
                                                         BorderRadius.circular(
                                                           10,
                                                         ),
-                                                    child: artwork(size: 48),
+                                                    child: showAction
+                                                        ? TogetherMemberAvatar(
+                                                            size: 48,
+                                                            member: TogetherParticipant(
+                                                              avatarBytes:
+                                                                  party
+                                                                      .merchantHost
+                                                                  ? null
+                                                                  : party
+                                                                        .hostAvatarBytes,
+                                                              name:
+                                                                  party
+                                                                      .merchantHost
+                                                                  ? party
+                                                                        .storeName
+                                                                  : party
+                                                                        .hostName,
+                                                              avatar:
+                                                                  party
+                                                                      .merchantHost
+                                                                  ? party
+                                                                        .storeLogo
+                                                                  : party
+                                                                        .hostAvatar,
+                                                            ),
+                                                          )
+                                                        : artwork(size: 48),
                                                   ),
                                                   SizedBox(width: 10),
                                                   Expanded(
@@ -1033,7 +1062,13 @@ class TogetherAvailableRow extends StatelessWidget {
                                                               .start,
                                                       children: [
                                                         Text(
-                                                          party.theme,
+                                                          showAction
+                                                              ? (party.merchantHost
+                                                                    ? party
+                                                                          .storeName
+                                                                    : party
+                                                                          .hostName)
+                                                              : party.theme,
                                                           key: ValueKey(
                                                             'together-summary-title-${party.ref}',
                                                           ),
@@ -1055,7 +1090,11 @@ class TogetherAvailableRow extends StatelessWidget {
                                                         ),
                                                         SizedBox(height: 2),
                                                         Text(
-                                                          party.priceLabel,
+                                                          showAction
+                                                              ? party
+                                                                    .hostIntroduction
+                                                              : party
+                                                                    .priceLabel,
                                                           key: ValueKey(
                                                             'together-summary-subtitle-${party.ref}',
                                                           ),
@@ -1077,7 +1116,11 @@ class TogetherAvailableRow extends StatelessWidget {
                                                   SizedBox(width: 10),
                                                   TogetherActivityAction(
                                                     key: ValueKey(
-                                                      'together-summary-open-${party.ref}',
+                                                      showAction &&
+                                                              !party
+                                                                  .merchantHost
+                                                          ? 'together-join-${party.ref}'
+                                                          : 'together-summary-open-${party.ref}',
                                                     ),
                                                     palette: footer,
                                                     onPressed: showAction
@@ -1090,26 +1133,34 @@ class TogetherAvailableRow extends StatelessWidget {
                                             : Row(
                                                 children: [
                                                   Expanded(
-                                                    child: TogetherParticipants(
-                                                      key: ValueKey(
-                                                        'together-seats-footer-${party.ref}',
-                                                      ),
-                                                      party: party,
-                                                      showCount: false,
-                                                      seatSize: 48,
-                                                      seatGap:
-                                                          ((constraints.maxWidth -
-                                                                      40 -
-                                                                      5 * 48) /
-                                                                  4)
-                                                              .clamp(0.0, 30.0),
-                                                      iconHeight: 28,
-                                                      singleRow: true,
-                                                      maxSeats: showAction
-                                                          ? 20
-                                                          : null,
-                                                      cornerRadius: 11,
-                                                    ),
+                                                    child: showAction
+                                                        ? TogetherAttendeeGrid(
+                                                            party: party,
+                                                          )
+                                                        : TogetherParticipants(
+                                                            key: ValueKey(
+                                                              'together-seats-footer-${party.ref}',
+                                                            ),
+                                                            party: party,
+                                                            showCount: false,
+                                                            seatSize: 48,
+                                                            seatGap:
+                                                                ((constraints.maxWidth -
+                                                                            40 -
+                                                                            5 *
+                                                                                48) /
+                                                                        4)
+                                                                    .clamp(
+                                                                      0.0,
+                                                                      30.0,
+                                                                    ),
+                                                            iconHeight: 28,
+                                                            singleRow: true,
+                                                            maxSeats: showAction
+                                                                ? 20
+                                                                : null,
+                                                            cornerRadius: 11,
+                                                          ),
                                                   ),
                                                   if (onAction != null ||
                                                       showAction) ...[

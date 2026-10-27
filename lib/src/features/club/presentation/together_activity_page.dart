@@ -6,6 +6,11 @@ import 'legacy_club_components.dart';
 import 'together_play_page.dart';
 import 'together_removal_page.dart';
 import 'together_activity_close.dart';
+import 'together_seat_cards.dart';
+import 'together_seat_picker.dart';
+import '../data/secure_together_play_repository.dart';
+
+import 'package:uuid/uuid.dart';
 
 String togetherActivityHeroTag(String ref) => 'together-activity-$ref';
 
@@ -169,6 +174,70 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
     }
   }
 
+  Future<void> _requestSeatChange() async {
+    final choice = await showTogetherSeatPicker(
+      context,
+      _party,
+      changing: true,
+    );
+    if (choice == null || !mounted) return;
+    final input = TextEditingController();
+    String? reason;
+    try {
+      reason = await showDialog<String>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('填写调座原因'),
+          content: TextField(
+            controller: input,
+            maxLength: 300,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(hintText: '说明希望调整的原因，审批前保留原座位'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (input.text.trim().isNotEmpty) {
+                  Navigator.pop(dialog, input.text.trim());
+                }
+              },
+              child: const Text('提交申请'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      input.dispose();
+    }
+    if (reason == null || !mounted) return;
+    try {
+      await (widget.repository as SecureTogetherPlayRepository)
+          .requestSeatChange(_party.ref, choice, reason, const Uuid().v4());
+      if (mounted) await _load();
+    } catch (_) {
+      if (mounted) setState(() => _error = '调座申请未提交成功，请重试');
+    }
+  }
+
+  Future<void> _reviewSeatChange(String ref, bool approve) async {
+    if (_acting) return;
+    setState(() => _acting = true);
+    try {
+      await (widget.repository as SecureTogetherPlayRepository)
+          .reviewSeatChange(_party.ref, ref, approve);
+      if (mounted) await _load();
+    } catch (_) {
+      if (mounted) setState(() => _error = '调座审核未成功，座位可能已变化，请刷新后重试');
+    } finally {
+      if (mounted) setState(() => _acting = false);
+    }
+  }
+
   Widget _cardFlight(
     BuildContext context,
     Animation<double> animation,
@@ -276,6 +345,68 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (_party.tables.isNotEmpty) ...[
+                                const Text(
+                                  '活动卡座',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TogetherSeatCards(party: _party),
+                                if (_party.hasAdmissionTicket &&
+                                    widget.repository
+                                        is SecureTogetherPlayRepository)
+                                  TextButton(
+                                    onPressed: _party.seatChangePending
+                                        ? null
+                                        : _requestSeatChange,
+                                    child: Text(
+                                      _party.seatChangePending
+                                          ? '调座申请审核中'
+                                          : '申请调整座位',
+                                    ),
+                                  ),
+                                if (widget.repository
+                                    is SecureTogetherPlayRepository)
+                                  for (final request in _party.seatRequests)
+                                    Card(
+                                      child: ListTile(
+                                        title: Text(
+                                          '${request['name'] ?? '会员'}申请调座',
+                                        ),
+                                        subtitle: Text(
+                                          '${request['reason'] ?? ''}',
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextButton(
+                                              onPressed: _acting
+                                                  ? null
+                                                  : () => _reviewSeatChange(
+                                                      request['ref'] as String,
+                                                      false,
+                                                    ),
+                                              child: const Text('拒绝'),
+                                            ),
+                                            TextButton(
+                                              onPressed: _acting
+                                                  ? null
+                                                  : () => _reviewSeatChange(
+                                                      request['ref'] as String,
+                                                      true,
+                                                    ),
+                                              child: const Text('批准'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                const SizedBox(height: 20),
+                              ],
                               if (widget.repository
                                   is TogetherRemovalRepository)
                                 TextButton(

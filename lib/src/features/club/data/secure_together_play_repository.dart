@@ -148,6 +148,8 @@ class SecureTogetherPlayRepository
       }
       return TogetherParticipant(
         name: _text(item['name']),
+        account: item['account'] == null ? null : _ref(item['account']),
+        tableRef: item['tableRef'] == null ? null : _ref(item['tableRef']),
         seatIndex: index,
         gender: switch (item['gender']) {
           1 => TogetherGender.male,
@@ -156,6 +158,66 @@ class SecureTogetherPlayRepository
         },
         avatarBytes: photo == null ? null : base64Decode(photo as String),
         isMe: item['isMe'] == true,
+      );
+    }).toList();
+  }
+
+  Uint8List? _hostAvatar(dynamic value) {
+    if (value == null) return null;
+    if (value is! String || value.length > 65536) _invalid();
+    return base64Decode(value);
+  }
+
+  List<TogetherActivityTable> _tables(dynamic value) {
+    if (value == null) return const [];
+    if (value is! List || value.length > 30) _invalid();
+    final refs = <String>{};
+    return value.map((dynamic t) {
+      if (t is! Map) _invalid();
+      final ref = _ref(t['ref']);
+      final capacity = t['capacity'],
+          male = t['maleSeats'],
+          female = t['femaleSeats'];
+      if (!refs.add(ref) ||
+          capacity is! int ||
+          capacity < 1 ||
+          capacity > 100 ||
+          male is! int ||
+          male < 0 ||
+          female is! int ||
+          female < 0 ||
+          male + female != capacity) {
+        _invalid();
+      }
+      final people = _participants(t['participants'], capacity);
+      final reserved = t['reservedSeats'] ?? <int>[];
+      if (reserved is! List || reserved.length > capacity) _invalid();
+      final used = people.map((p) => p.seatIndex!).toSet();
+      final blocked = <int>[];
+      for (final i in reserved) {
+        if (i is! int || i < 0 || i >= capacity || !used.add(i)) _invalid();
+        blocked.add(i);
+      }
+      if (people.any(
+        (p) =>
+            p.tableRef != ref ||
+            t['genderRestricted'] != false &&
+                p.gender !=
+                    (p.seatIndex! < male
+                        ? TogetherGender.male
+                        : TogetherGender.female),
+      )) {
+        _invalid();
+      }
+      return TogetherActivityTable(
+        ref: ref,
+        name: _text(t['name']),
+        capacity: capacity,
+        maleSeats: male,
+        femaleSeats: female,
+        participants: people,
+        reservedSeats: blocked,
+        genderRestricted: t['genderRestricted'] != false,
       );
     }).toList();
   }
@@ -245,6 +307,23 @@ class SecureTogetherPlayRepository
       storeRef: _ref(r['storeRef']),
       storeName: _text(r['storeName']),
       storeLogo: r['storeLogo'] == null ? null : _media(r['storeLogo']),
+      hostAvatar: r['hostAvatar'] == null ? null : _media(r['hostAvatar']),
+      hostAvatarBytes: _hostAvatar(r['hostAvatarBase64']),
+      seatRequests: r['seatRequests'] is List
+          ? (r['seatRequests'] as List)
+                .map((dynamic v) => Map<String, dynamic>.from(v as Map))
+                .toList()
+          : const [],
+      hostIntroduction: r['hostIntroduction'] is String
+          ? r['hostIntroduction'] as String
+          : '',
+      myGender: r['myGender'] == 1
+          ? TogetherGender.male
+          : r['myGender'] == 2
+          ? TogetherGender.female
+          : TogetherGender.unspecified,
+      seatChangePending: r['seatChangePending'] == true,
+      tables: _tables(r['tables']),
       startsAt: venue(start),
       endsAt: venue(end),
       hostName: r['publisherType'] == 'official'
@@ -770,10 +849,53 @@ class SecureTogetherPlayRepository
     );
   }
 
+  Future<void> reviewSeatChange(
+    String partyRef,
+    String requestRef,
+    bool approve,
+  ) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    await _call(
+      'K261004001986',
+      {
+        'partyRef': partyRef,
+        'seatAction': 'review',
+        'requestRef': requestRef,
+        'decision': approve ? 'approve' : 'reject',
+      },
+      session!,
+      identity,
+    );
+  }
+
+  Future<void> requestSeatChange(
+    String partyRef,
+    TogetherSeatChoice choice,
+    String reason,
+    String requestRef,
+  ) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    await _call(
+      'K261004001986',
+      {
+        'partyRef': partyRef,
+        'seatAction': 'requestChange',
+        'seatChoice': choice.toJson(),
+        'reason': reason,
+        'requestRef': requestRef,
+      },
+      session!,
+      identity,
+    );
+  }
+
   /// Creates/retrieves an unpaid booking. Never interprets creation as admission.
   Future<TogetherBooking> prepareBooking(
     String partyRef, {
     required String requestRef,
+    TogetherSeatChoice? seatChoice,
   }) async {
     _ref(partyRef);
     _ref(requestRef);
@@ -781,7 +903,11 @@ class SecureTogetherPlayRepository
     final identity = _identity(session);
     final result = await _call(
       'K261004001988',
-      {'partyRef': partyRef, 'requestRef': requestRef},
+      {
+        'partyRef': partyRef,
+        'requestRef': requestRef,
+        if (seatChoice != null) 'seatChoice': seatChoice.toJson(),
+      },
       session!,
       identity,
     );

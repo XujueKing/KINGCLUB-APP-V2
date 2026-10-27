@@ -221,6 +221,24 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                     Expanded(
                       child: ListView(
                         children: [
+                          if (tables.isNotEmpty && tables.length <= 30)
+                            CheckboxListTile(
+                              value: selected.length == tables.length,
+                              title: const Text(
+                                '全场活动 · 选择全部卡座／包厢',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: const Text(
+                                '也可取消全选，逐一选择部分位置',
+                                style: TextStyle(color: Colors.white60),
+                              ),
+                              onChanged: (checked) => update(() {
+                                selected.clear();
+                                if (checked == true) {
+                                  selected.addAll(tables.map((t) => t.ref));
+                                }
+                              }),
+                            ),
                           if (tables.isEmpty)
                             const ListTile(title: Text('该门店暂无可用桌台')),
                           for (final v in tables)
@@ -1388,7 +1406,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                           padding: const EdgeInsets.fromLTRB(28, 6, 28, 10),
                           child: Text(
                             _official
-                                ? '发布时预留所选位置，每桌一份套餐。顾客购买前隐藏编号，付款后由商家分座。'
+                                ? '发布时选定活动卡座／包厢及容量。顾客可自选座位或由系统随机分配，已分配后的调整需申请。'
                                 : '使用本人按月签约的位置，编号及已加入人数对顾客公开。',
                             style: const TextStyle(
                               color: Colors.white54,
