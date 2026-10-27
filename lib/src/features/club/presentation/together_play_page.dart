@@ -792,7 +792,7 @@ class TogetherAvailableRow extends StatelessWidget {
         final poster = party.detailPosters.firstOrNull;
         final summary = showAction
             ? party.participantCount < 10
-            : party.merchantHost;
+            : party.displaysStoreBranding;
         return TogetherArtworkContrast(
           source: poster,
           aspectRatio: 353 / 435,
@@ -934,7 +934,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       Text(
-                                        party.feeLabel,
+                                        party.cardKicker ?? party.feeLabel,
                                         key: ValueKey(
                                           'together-kicker-${party.ref}',
                                         ),
@@ -1027,31 +1027,36 @@ class TogetherAvailableRow extends StatelessWidget {
                                                           10,
                                                         ),
                                                     child: showAction
-                                                        ? TogetherMemberAvatar(
-                                                            size: 48,
-                                                            member: TogetherParticipant(
-                                                              avatarBytes:
-                                                                  party
-                                                                      .merchantHost
-                                                                  ? null
-                                                                  : party
-                                                                        .hostAvatarBytes,
-                                                              name:
-                                                                  party
-                                                                      .merchantHost
-                                                                  ? party
-                                                                        .storeName
-                                                                  : party
-                                                                        .hostName,
-                                                              avatar:
-                                                                  party
-                                                                      .merchantHost
-                                                                  ? party
-                                                                        .storeLogo
-                                                                  : party
-                                                                        .hostAvatar,
-                                                            ),
-                                                          )
+                                                        ? party.displaysStoreBranding
+                                                              ? TogetherStoreLogo(
+                                                                  party: party,
+                                                                  size: 48,
+                                                                )
+                                                              : TogetherMemberAvatar(
+                                                                  size: 48,
+                                                                  member: TogetherParticipant(
+                                                                    avatarBytes:
+                                                                        party
+                                                                            .displaysStoreBranding
+                                                                        ? null
+                                                                        : party
+                                                                              .hostAvatarBytes,
+                                                                    name:
+                                                                        party
+                                                                            .displaysStoreBranding
+                                                                        ? party
+                                                                              .storeName
+                                                                        : party
+                                                                              .hostName,
+                                                                    avatar:
+                                                                        party
+                                                                            .displaysStoreBranding
+                                                                        ? party
+                                                                              .storeLogo
+                                                                        : party
+                                                                              .hostAvatar,
+                                                                  ),
+                                                                )
                                                         : artwork(size: 48),
                                                   ),
                                                   SizedBox(width: 10),
@@ -1063,7 +1068,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                                       children: [
                                                         Text(
                                                           showAction
-                                                              ? (party.merchantHost
+                                                              ? (party.displaysStoreBranding
                                                                     ? party
                                                                           .storeName
                                                                     : party
@@ -1118,7 +1123,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                                     key: ValueKey(
                                                       showAction &&
                                                               !party
-                                                                  .merchantHost
+                                                                  .displaysStoreBranding
                                                           ? 'together-join-${party.ref}'
                                                           : 'together-summary-open-${party.ref}',
                                                     ),

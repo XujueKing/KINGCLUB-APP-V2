@@ -107,6 +107,8 @@ class TogetherParty {
     this.bookingPayableMinor,
     this.hostAvatar,
     this.hostIntroduction = '',
+    this.cardKicker,
+    this.cardPublisher,
     this.tables = const [],
     this.myGender = TogetherGender.unspecified,
     this.seatChangePending = false,
@@ -147,6 +149,8 @@ class TogetherParty {
   final String? storeLogo;
   final String? hostAvatar;
   final String hostIntroduction;
+  final String? cardKicker, cardPublisher;
+  bool get displaysStoreBranding => merchantHost || cardPublisher == 'store';
   final List<TogetherActivityTable> tables;
   final TogetherGender myGender;
   final bool seatChangePending;
@@ -191,6 +195,8 @@ class TogetherParty {
     storeLogo: storeLogo,
     hostAvatar: hostAvatar,
     hostIntroduction: hostIntroduction,
+    cardKicker: cardKicker,
+    cardPublisher: cardPublisher,
     tables: tables,
     myGender: myGender,
     seatChangePending: seatChangePending,

@@ -53,6 +53,8 @@ TogetherParty fixture({
   bool? eligible,
   List<String> eligibilityReasons = const [],
   int? personalPriceMinor,
+  String? cardKicker,
+  String? cardPublisher,
 }) => TogetherParty(
   ref: ref,
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
@@ -67,6 +69,8 @@ TogetherParty fixture({
   startsAt: DateTime(2026, 10, day, 21),
   endsAt: DateTime(2026, 10, day + 1, 2),
   hostName: '样例发起人',
+  cardKicker: cardKicker,
+  cardPublisher: cardPublisher,
   merchantHost: merchantHost,
   place: '样例活动地点',
   capacity: capacity,

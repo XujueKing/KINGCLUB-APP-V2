@@ -317,6 +317,12 @@ class SecureTogetherPlayRepository
       hostIntroduction: r['hostIntroduction'] is String
           ? r['hostIntroduction'] as String
           : '',
+      cardKicker: r['cardKicker'] == null ? null : _text(r['cardKicker']),
+      cardPublisher: r['cardPublisher'] == null
+          ? null
+          : (const ['store', 'member'].contains(r['cardPublisher'])
+                ? r['cardPublisher'] as String
+                : _invalid()),
       myGender: r['myGender'] == 1
           ? TogetherGender.male
           : r['myGender'] == 2

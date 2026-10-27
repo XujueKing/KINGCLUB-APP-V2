@@ -272,7 +272,7 @@ void main() {
     (tester) async {
       final repo = Feed();
       await mount(tester, repo);
-      expect(find.text('今日'), findsOneWidget);
+      expect(find.text('推荐'), findsOneWidget);
       expect(repo.calls, [TogetherFeedView.recommendations]);
       expect(find.byType(TogetherAvailableRow), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('today-menu')));

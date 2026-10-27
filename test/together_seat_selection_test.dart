@@ -9,6 +9,45 @@ import 'together_play_test.dart' show fixture;
 
 void main() {
   testWidgets(
+    'store-branded cards show the real store identity and separate small heading',
+    (tester) async {
+      final party = fixture(
+        merchantHost: false,
+        cardPublisher: 'store',
+        cardKicker: '本周五 (10月30日)',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TogetherAvailableRow(
+                party: party,
+                onTap: () {},
+                showAction: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(TogetherStoreLogo), findsOneWidget);
+      expect(find.text('样例门店'), findsOneWidget);
+      expect(find.text('样例发起人'), findsNothing);
+      expect(find.text('本周五 (10月30日)'), findsOneWidget);
+      expect(find.text(party.feeLabel), findsNothing);
+      expect(
+        party
+            .withAdmission(
+              number: 'ticket',
+              code: 'code',
+              expiresAt: DateTime(2030),
+            )
+            .cardPublisher,
+        'store',
+      );
+    },
+  );
+  testWidgets(
     'publisher changes to a tight 5 by 2 avatar grid at ten, not eleven',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(402, 874));

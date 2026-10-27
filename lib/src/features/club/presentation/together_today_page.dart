@@ -408,7 +408,7 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
           ),
         ],
         child: Text(
-          _t('今日', 'Today', '今日', 'วันนี้'),
+          _t('推荐', 'Discover', '推薦', 'แนะนำ'),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 34,
