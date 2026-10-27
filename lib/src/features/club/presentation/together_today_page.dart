@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -186,33 +185,10 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
       _navigating = true;
       _openingRef = party.ref;
     });
-    ui.Image? preview;
-    if (!MediaQuery.disableAnimationsOf(context)) {
-      try {
-        // A pressed InkWell may need its last paint before capture. Only the
-        // already visible card is captured; no I/O or full-screen screenshot.
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || !box.attached) {
-          _navigating = false;
-          if (mounted) setState(() => _openingRef = null);
-          return;
-        }
-        preview = box.toImageSync(
-          pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
-        );
-      } catch (_) {
-        // The fixed-size Hero child remains a valid non-capture fallback.
-      }
-    }
-    if (!mounted) {
-      preview?.dispose();
-      return;
-    }
     var changed = false;
     try {
       await openTogetherActivity(
         context,
-        previewImage: preview,
         party: party,
         repository: widget.repository,
         onJoin: (value) async {

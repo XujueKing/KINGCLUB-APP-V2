@@ -10,6 +10,7 @@ import 'package:kingclub/src/features/club/presentation/together_today_page.dart
 import 'package:kingclub/src/features/club/presentation/together_activity_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_artwork_contrast.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_activity_action.dart';
 
 import 'together_play_test.dart' as old;
 
@@ -137,14 +138,96 @@ void main() {
       await tester.pump(const Duration(milliseconds: 180));
       await tester.pump();
       final states = tester.stateList(cards).toList();
-      expect(states, hasLength(2));
+      expect(states, hasLength(3));
       expect(states, contains(same(source)));
-      final target = states.singleWhere((state) => !identical(state, source));
+      final target = states[1];
       await tester.pumpAndSettle();
       expect(tester.stateList(cards), contains(same(target)));
       await tester.tap(find.byKey(const ValueKey('together-close-detail')));
       await tester.pumpAndSettle();
       expect(tester.state(cards), same(source));
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'flight grows only artwork while footer controls keep their size',
+    (tester) async {
+      await mount(tester, Feed());
+      final source = find.byKey(const ValueKey('together-join-future'));
+      final before = tester.getRect(
+        find.descendant(
+          of: source,
+          matching: find.byKey(const ValueKey('together-action-pill')),
+        ),
+      );
+      await tester.tap(source);
+      await tester.pump();
+      Future<void> checkFlight() async {
+        final flight = find.byKey(
+          const ValueKey('together-card-flight-content'),
+        );
+        expect(flight, findsOneWidget);
+        final button = find.descendant(
+          of: flight,
+          matching: find.byKey(const ValueKey('together-action-pill')),
+        );
+        expect(tester.getRect(button).size, before.size);
+        final seats = tester.widget<TogetherParticipants>(
+          find.descendant(
+            of: flight,
+            matching: find.byType(TogetherParticipants),
+          ),
+        );
+        expect(seats.seatSize, 48);
+        final title = tester.widget<Text>(
+          find.descendant(
+            of: flight,
+            matching: find.byKey(
+              const ValueKey('together-editorial-title-future'),
+            ),
+          ),
+        );
+        expect(title.style!.fontSize, 24);
+        expect(
+          find.descendant(
+            of: flight,
+            matching: find.byType(TogetherActivityAction),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: flight, matching: find.byType(FittedBox)),
+          findsNothing,
+        );
+        expect(
+          tester
+              .getRect(
+                find.descendant(
+                  of: flight,
+                  matching: find.byKey(const ValueKey('seat-future-0')),
+                ),
+              )
+              .size,
+          const Size(48, 48),
+        );
+      }
+
+      await tester.pump(const Duration(milliseconds: 90));
+      await checkFlight();
+      await tester.pump(const Duration(milliseconds: 90));
+      await checkFlight();
+      await tester.pumpAndSettle();
+      final detail = find.byType(TogetherActivityPage);
+      final detailPill = find.descendant(
+        of: detail,
+        matching: find.byKey(const ValueKey('together-action-pill')),
+      );
+      expect(tester.getRect(detailPill).size, before.size);
+      await tester.tap(find.byKey(const ValueKey('together-close-detail')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await checkFlight();
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
@@ -160,7 +243,7 @@ void main() {
     expect(repo.detailCalls, 0);
     expect(find.text('参加须知'), findsNothing);
     expect(
-      find.byKey(const ValueKey('together-card-flight-image')),
+      find.byKey(const ValueKey('together-card-flight-content')),
       findsOneWidget,
     );
     expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -179,7 +262,7 @@ void main() {
     expect(repo.calls, [TogetherFeedView.recommendations]);
     expect(find.text('加入'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('together-card-flight-image')),
+      find.byKey(const ValueKey('together-card-flight-content')),
       findsNothing,
     );
   });

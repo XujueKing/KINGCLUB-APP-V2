@@ -786,7 +786,7 @@ class TogetherAvailableRow extends StatelessWidget {
     ),
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final scale = (constraints.maxWidth / 353).clamp(.8, 1.15);
+        const scale = 1.0;
         final inset = 20 * scale;
         final poster = party.detailPosters.firstOrNull;
         final summary = party.merchantHost;

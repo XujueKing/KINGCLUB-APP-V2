@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_back_gesture.dart';
@@ -33,7 +31,6 @@ Widget togetherActivityPlaceholder(
 
 Future<void> openTogetherActivity(
   BuildContext context, {
-  ui.Image? previewImage,
   required TogetherParty party,
   required TogetherPlayRepository repository,
   required Future<void> Function(TogetherParty) onJoin,
@@ -51,7 +48,6 @@ Future<void> openTogetherActivity(
         : const Duration(milliseconds: 300),
     pageBuilder: (_, animation, _) => TogetherActivityPage(
       entranceAnimation: animation,
-      previewImage: previewImage,
       party: party,
       repository: repository,
       onJoin: onJoin,
@@ -61,12 +57,8 @@ Future<void> openTogetherActivity(
     ),
     transitionsBuilder: (_, _, _, child) => child,
   );
-  try {
-    await Navigator.of(context).push<void>(route);
-    await route.completed;
-  } finally {
-    previewImage?.dispose();
-  }
+  await Navigator.of(context).push<void>(route);
+  await route.completed;
 }
 
 class TogetherActivityPage extends StatefulWidget {
@@ -79,7 +71,6 @@ class TogetherActivityPage extends StatefulWidget {
     required this.onViewed,
     this.onLoaded,
     this.entranceAnimation,
-    this.previewImage,
   });
   final TogetherParty party;
   final TogetherPlayRepository repository;
@@ -87,7 +78,6 @@ class TogetherActivityPage extends StatefulWidget {
   final VoidCallback onViewed;
   final ValueChanged<TogetherParty>? onLoaded;
   final Animation<double>? entranceAnimation;
-  final ui.Image? previewImage;
   @override
   State<TogetherActivityPage> createState() => _TogetherActivityPageState();
 }
@@ -187,29 +177,34 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
     BuildContext to,
   ) {
     final source = direction == HeroFlightDirection.push ? from : to;
-    final image = widget.previewImage;
+    TogetherAvailableRow? sourceRow;
+    void findRow(Element element) {
+      if (element.widget is TogetherAvailableRow) {
+        sourceRow = element.widget as TogetherAvailableRow;
+        return;
+      }
+      element.visitChildren(findRow);
+    }
+
+    (source as Element).visitChildren(findRow);
+    // Re-layout the small, cached card at the flight's actual width. Only its
+    // poster grows; typography, footer height, avatars and controls keep their
+    // logical size. No screenshot/FittedBox scales the entire composition.
     return AnimatedBuilder(
       animation: animation,
-      child: image != null
-          ? RawImage(
-              key: const ValueKey('together-card-flight-image'),
-              image: image,
-              fit: BoxFit.fill,
-            )
-          : FittedBox(
-              fit: BoxFit.fill,
-              child: SizedBox.fromSize(
-                size: source.size,
-                child: TogetherAvailableRow(
-                  party: widget.party,
-                  onTap: () {},
-                  edgeInset: false,
-                  showHeading: false,
-                  showAction: true,
-                  blurFooter: false,
-                ),
-              ),
-            ),
+      child: IgnorePointer(
+        child: TogetherAvailableRow(
+          key: const ValueKey('together-card-flight-content'),
+          party: sourceRow?.party ?? widget.party,
+          onTap: () {},
+          edgeInset: false,
+          showHeading: false,
+          expanded: true,
+          showAction: true,
+          blurFooter: false,
+          actionLabel: sourceRow?.actionLabel ?? '加入',
+        ),
+      ),
       builder: (_, child) => ClipRRect(
         borderRadius: BorderRadius.circular(22 * (1 - animation.value)),
         child: child,
