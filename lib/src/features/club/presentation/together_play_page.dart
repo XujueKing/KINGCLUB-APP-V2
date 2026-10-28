@@ -880,7 +880,7 @@ class TogetherAvailableRow extends StatelessWidget {
                     height: compact ? 1.1 : 1.3,
                   ),
                 ),
-                SizedBox(height: (compact ? 1 : 8) * scale),
+                SizedBox(height: (compact ? 4 : 8) * scale),
                 Text(
                   compact
                       ? party.theme
@@ -902,7 +902,7 @@ class TogetherAvailableRow extends StatelessWidget {
                     height: compact ? 1.1 : 1.15,
                   ),
                 ),
-                SizedBox(height: (compact ? 1 : 8) * scale),
+                SizedBox(height: (compact ? 4 : 8) * scale),
                 Padding(
                   padding: EdgeInsets.only(right: 0),
                   child: Text(
