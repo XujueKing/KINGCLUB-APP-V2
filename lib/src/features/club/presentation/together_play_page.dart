@@ -798,8 +798,12 @@ class TogetherAvailableRow extends StatelessWidget {
         return TogetherArtworkContrast(
           source: poster,
           aspectRatio: compact ? 2.24 : 353 / 435,
+          textRegion: compact ? const Rect.fromLTRB(0, .55, .7, 1) : null,
           builder: (context, ink) {
-            final footer = TogetherFooterPalette(ink.flatFooter);
+            final footer = TogetherFooterPalette(
+              ink.flatFooter,
+              translucent: compact,
+            );
             final cupertino = CupertinoTheme.of(context).textTheme;
             final ios = Theme.of(context).platform == TargetPlatform.iOS;
             TextStyle textStyle(
@@ -859,6 +863,65 @@ class TogetherAvailableRow extends StatelessWidget {
                   : SizedBox.square(dimension: size, child: image);
             }
 
+            Widget editorialText(double width) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  party.cardKicker ?? party.feeLabel,
+                  key: ValueKey('together-kicker-${party.ref}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle(
+                    13,
+                    weight: FontWeight.w700,
+                    color: ink.editorialSecondary,
+                    height: 1.3,
+                  ),
+                ),
+                SizedBox(height: 8 * scale),
+                Text(
+                  togetherEditorialHeadline(
+                    party.theme,
+                    textStyle(24, weight: FontWeight.w700, height: 1.15),
+                    width,
+                    MediaQuery.textScalerOf(context),
+                    Directionality.of(context),
+                  ),
+                  semanticsLabel: party.theme,
+                  key: ValueKey('together-editorial-title-${party.ref}'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle(
+                    24,
+                    color: ink.editorialPrimary,
+                    weight: FontWeight.w700,
+                    height: 1.15,
+                  ),
+                ),
+                SizedBox(height: 8 * scale),
+                Padding(
+                  padding: EdgeInsets.only(
+                    right: compact && showAction ? 84 : 0,
+                  ),
+                  child: Text(
+                    party.description.trim().isEmpty
+                        ? party.place
+                        : party.description.trim(),
+                    key: ValueKey('together-editorial-subtitle-${party.ref}'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle(
+                      13,
+                      color: ink.editorialSecondary,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            );
+
             if (compact) {
               return ClipRRect(
                 borderRadius: BorderRadius.circular(expanded ? 0 : 22),
@@ -875,7 +938,7 @@ class TogetherAvailableRow extends StatelessWidget {
                       child: Stack(
                         children: [
                           Positioned.fill(child: artwork()),
-                          const Positioned.fill(
+                          Positioned.fill(
                             child: DecoratedBox(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
@@ -883,7 +946,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                   end: Alignment.bottomCenter,
                                   colors: [
                                     Colors.transparent,
-                                    Color(0xCC211339),
+                                    ink.veil.withValues(alpha: .12),
                                   ],
                                   stops: [.4, 1],
                                 ),
@@ -891,60 +954,28 @@ class TogetherAvailableRow extends StatelessWidget {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 14, 12),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
-                                minHeight: constraints.maxWidth / 2.24 - 12,
+                                minHeight: constraints.maxWidth / 2.24 - 30,
                               ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 5),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            party.theme,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: textStyle(
-                                              16,
-                                              color: Colors.white,
-                                              weight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            party.feeLabel,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: textStyle(
-                                              13,
-                                              color: Colors.white.withValues(
-                                                alpha: .7,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  if (showAction) ...[
-                                    const SizedBox(width: 10),
-                                    TogetherActivityAction(
-                                      palette: footer,
-                                      label: actionLabel,
-                                      onPressed: onAction,
-                                    ),
-                                  ],
-                                ],
+                              child: Align(
+                                alignment: Alignment.bottomLeft,
+                                heightFactor: 1,
+                                child: editorialText(constraints.maxWidth - 40),
                               ),
                             ),
                           ),
+                          if (showAction)
+                            Positioned(
+                              right: 14,
+                              bottom: 7,
+                              child: TogetherActivityAction(
+                                palette: footer,
+                                label: actionLabel,
+                                onPressed: onAction,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -1023,68 +1054,8 @@ class TogetherAvailableRow extends StatelessWidget {
                                     inset,
                                     18 * scale,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        party.cardKicker ?? party.feeLabel,
-                                        key: ValueKey(
-                                          'together-kicker-${party.ref}',
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textStyle(
-                                          13,
-                                          weight: FontWeight.w700,
-                                          color: ink.editorialSecondary,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8 * scale),
-                                      Text(
-                                        togetherEditorialHeadline(
-                                          party.theme,
-                                          textStyle(
-                                            24,
-                                            weight: FontWeight.w700,
-                                            height: 1.15,
-                                          ),
-                                          constraints.maxWidth - 2 * inset,
-                                          MediaQuery.textScalerOf(context),
-                                          Directionality.of(context),
-                                        ),
-                                        semanticsLabel: party.theme,
-                                        key: ValueKey(
-                                          'together-editorial-title-${party.ref}',
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textStyle(
-                                          24,
-                                          color: ink.editorialPrimary,
-                                          weight: FontWeight.w700,
-                                          height: 1.15,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8 * scale),
-                                      Text(
-                                        party.description.trim().isEmpty
-                                            ? party.place
-                                            : party.description.trim(),
-                                        key: ValueKey(
-                                          'together-editorial-subtitle-${party.ref}',
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textStyle(
-                                          13,
-                                          color: ink.editorialSecondary,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ],
+                                  child: editorialText(
+                                    constraints.maxWidth - 2 * inset,
                                   ),
                                 ),
                               ),

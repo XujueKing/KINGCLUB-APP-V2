@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 /// poster headline. Warm artwork retains white labels; pale cool artwork gets
 /// dark metadata and a slate-colored action. There is no live blur or border.
 class TogetherFooterPalette {
-  TogetherFooterPalette(Color background) {
+  TogetherFooterPalette(Color background, {bool translucent = false}) {
     final opaque = background.withValues(alpha: 1);
     final tone = HSLColor.fromColor(opaque);
     final luminance = opaque.computeLuminance();
@@ -16,16 +16,25 @@ class TogetherFooterPalette {
         (luminance >= .24 && HSVColor.fromColor(opaque).saturation <= .5);
     primary = light ? const Color(0xFF080A0C) : Colors.white;
     secondary = primary.withValues(alpha: .6);
+    final Color computedAction;
     if (light) {
-      action = HSVColor.fromColor(opaque).saturation >= .2
+      computedAction = HSVColor.fromColor(opaque).saturation >= .2
           ? tone.withLightness(.32).toColor()
           : tone
                 .withSaturation(tone.saturation * .3)
                 .withLightness(.47)
                 .toColor();
     } else {
-      action = Color.alphaBlend(Colors.white.withValues(alpha: .28), opaque);
+      computedAction = Color.alphaBlend(
+        Colors.white.withValues(alpha: .28),
+        opaque,
+      );
     }
+    action = !translucent
+        ? computedAction
+        : light
+        ? computedAction.withValues(alpha: .85)
+        : Colors.white.withValues(alpha: .28);
     actionText = Colors.white;
   }
   late final Color primary, secondary, action, actionText;

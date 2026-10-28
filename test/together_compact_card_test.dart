@@ -41,6 +41,22 @@ void main() {
       expect(size.width / size.height, closeTo(2.24, .01));
       expect(find.text(party.theme), findsOneWidget);
       expect(find.text(party.feeLabel), findsOneWidget);
+      final title = tester.widget<Text>(
+        find.byKey(const ValueKey('together-editorial-title-night')),
+      );
+      final kicker = tester.widget<Text>(
+        find.byKey(const ValueKey('together-kicker-night')),
+      );
+      final subtitle = tester.widget<Text>(
+        find.byKey(const ValueKey('together-editorial-subtitle-night')),
+      );
+      expect(title.style!.fontSize, 24);
+      expect(kicker.style!.fontSize, 13);
+      expect(subtitle.style!.fontSize, 13);
+      final pill = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey('together-action-pill')),
+      );
+      expect((pill.decoration as BoxDecoration).color!.a, lessThan(1));
       await tester.tap(find.text('加入'));
       await tester.tap(find.text(party.theme));
       expect(tester.takeException(), isNull);

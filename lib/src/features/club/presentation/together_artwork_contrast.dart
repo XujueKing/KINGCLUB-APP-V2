@@ -183,6 +183,7 @@ class TogetherArtworkContrast extends StatefulWidget {
     super.key,
     required this.source,
     required this.aspectRatio,
+    this.textRegion,
     required this.builder,
   });
   @visibleForTesting
@@ -195,6 +196,7 @@ class TogetherArtworkContrast extends StatefulWidget {
       _TogetherArtworkContrastState._resolved[source];
 
   final String? source;
+  final Rect? textRegion;
   final double aspectRatio;
   final Widget Function(BuildContext, TogetherArtworkInk) builder;
   @override
@@ -307,7 +309,14 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
     initialData: _resolved[widget.source],
     builder: (context, snapshot) {
       final sample = snapshot.data;
-      final black = sample?.prefersBlack(widget.aspectRatio) ?? false;
+      final black = sample == null
+          ? false
+          : widget.textRegion == null
+          ? sample.prefersBlack(widget.aspectRatio)
+          : sample
+                    .colorInRegion(widget.aspectRatio, widget.textRegion!)
+                    .computeLuminance() >
+                .179;
       return widget.builder(
         context,
         TogetherArtworkInk(
@@ -317,7 +326,7 @@ class _TogetherArtworkContrastState extends State<TogetherArtworkContrast> {
               snapshot.hasData ||
               snapshot.connectionState == ConnectionState.done,
           black: black,
-          darkTone: black ? sample?.darkTextTone(widget.aspectRatio) : null,
+          darkTone: black ? sample.darkTextTone(widget.aspectRatio) : null,
           footerColor: sample?.footerTint(widget.aspectRatio, blackText: black),
         ),
       );
