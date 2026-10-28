@@ -318,6 +318,7 @@ class SecureTogetherPlayRepository
           ? r['hostIntroduction'] as String
           : '',
       cardKicker: r['cardKicker'] == null ? null : _text(r['cardKicker']),
+      cardLayout: r['cardLayout'] == 'compact' ? 'compact' : 'editorial',
       cardStoreName: r['cardStoreName'] == null
           ? null
           : _text(r['cardStoreName']),

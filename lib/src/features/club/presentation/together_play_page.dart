@@ -791,12 +791,13 @@ class TogetherAvailableRow extends StatelessWidget {
         const scale = 1.0;
         final inset = 20 * scale;
         final poster = party.detailPosters.firstOrNull;
+        final compact = party.cardLayout == 'compact';
         final summary = showAction
             ? party.participantCount < 10
             : party.displaysStoreBranding;
         return TogetherArtworkContrast(
           source: poster,
-          aspectRatio: 353 / 435,
+          aspectRatio: compact ? 2.24 : 353 / 435,
           builder: (context, ink) {
             final footer = TogetherFooterPalette(ink.flatFooter);
             final cupertino = CupertinoTheme.of(context).textTheme;
@@ -858,6 +859,99 @@ class TogetherAvailableRow extends StatelessWidget {
                   : SizedBox.square(dimension: size, child: image);
             }
 
+            if (compact) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(expanded ? 0 : 22),
+                child: Material(
+                  color: ink.flatFooter,
+                  child: InkWell(
+                    key: ValueKey('together-card-${party.ref}'),
+                    onTap: onTap,
+                    child: ConstrainedBox(
+                      key: ValueKey('together-compact-${party.ref}'),
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxWidth / 2.24,
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(child: artwork()),
+                          const Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Color(0xCC211339),
+                                  ],
+                                  stops: [.4, 1],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 14, 12),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: constraints.maxWidth / 2.24 - 12,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 5),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            party.theme,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: textStyle(
+                                              16,
+                                              color: Colors.white,
+                                              weight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            party.feeLabel,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: textStyle(
+                                              13,
+                                              color: Colors.white.withValues(
+                                                alpha: .7,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (showAction) ...[
+                                    const SizedBox(width: 10),
+                                    TogetherActivityAction(
+                                      palette: footer,
+                                      label: actionLabel,
+                                      onPressed: onAction,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

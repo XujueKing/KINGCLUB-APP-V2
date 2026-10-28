@@ -108,6 +108,7 @@ class TogetherParty {
     this.hostAvatar,
     this.hostIntroduction = '',
     this.cardKicker,
+    this.cardLayout = 'editorial',
     this.cardPublisher,
     this.cardStoreName,
     this.cardStoreSubtitle,
@@ -152,6 +153,7 @@ class TogetherParty {
   final String? hostAvatar;
   final String hostIntroduction;
   final String? cardKicker, cardPublisher;
+  final String cardLayout;
   final String? cardStoreName, cardStoreSubtitle;
   bool get displaysStoreBranding => merchantHost || cardPublisher == 'store';
   String get cardPublisherName =>
@@ -204,6 +206,7 @@ class TogetherParty {
     hostAvatar: hostAvatar,
     hostIntroduction: hostIntroduction,
     cardKicker: cardKicker,
+    cardLayout: cardLayout,
     cardPublisher: cardPublisher,
     cardStoreName: cardStoreName,
     cardStoreSubtitle: cardStoreSubtitle,
