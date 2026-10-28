@@ -20,6 +20,7 @@
   "largeTextScale": 1.2,
   "layoutCases": 48,
   "checks": [
+    "voucher section order/details/preview purchase/paused state",
     "logo navigation and propagation",
     "activity/store return restoration",
     "gallery missing images",
