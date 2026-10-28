@@ -301,6 +301,58 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
     }
 
     (source as Element).visitChildren(findRow);
+    final sourceParty = sourceRow?.party ?? widget.party;
+    if (sourceParty.cardLayout == 'compact') {
+      return AnimatedBuilder(
+        animation: animation,
+        builder: (_, _) {
+          final progress = Curves.easeInOut.transform(animation.value);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(22 * (1 - progress)),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Opacity(
+                  opacity: 1 - progress,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    child: TogetherAvailableRow(
+                      party: sourceParty,
+                      onTap: () {},
+                      edgeInset: false,
+                      showHeading: false,
+                      showAction: true,
+                      blurFooter: false,
+                      actionLabel: sourceRow?.actionLabel ?? '查看',
+                    ),
+                  ),
+                ),
+                Opacity(
+                  opacity: progress,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    child: TogetherAvailableRow(
+                      party: sourceParty,
+                      onTap: () {},
+                      edgeInset: false,
+                      showHeading: false,
+                      expanded: true,
+                      showAction: true,
+                      blurFooter: false,
+                      actionLabel: '加入',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
     // Re-layout the small, cached card at the flight's actual width. Only its
     // poster grows; typography, footer height, avatars and controls keep their
     // logical size. No screenshot/FittedBox scales the entire composition.

@@ -20,6 +20,7 @@ class Feed implements TogetherPlayRepository, TogetherFeedRepository {
   final filters = <String?>[];
   bool failDetail = false;
   bool includeOther = false;
+  bool compact = false;
   int detailCalls = 0;
   @override
   Future<TogetherFeedPage> feed({
@@ -32,7 +33,12 @@ class Feed implements TogetherPlayRepository, TogetherFeedRepository {
     calls.add(view);
     filters.add(storeRef);
     return TogetherFeedPage([
-      old.fixture(ref: 'future', day: 30, merchantHost: false),
+      old.fixture(
+        ref: 'future',
+        day: 30,
+        merchantHost: false,
+        cardLayout: compact ? 'compact' : 'editorial',
+      ),
       if (includeOther) old.fixture(ref: 'other', day: 30, merchantHost: false),
     ], null);
   }
@@ -41,7 +47,12 @@ class Feed implements TogetherPlayRepository, TogetherFeedRepository {
   Future<TogetherParty> detail(String ref) async {
     detailCalls++;
     if (failDetail) throw StateError('offline');
-    return old.fixture(ref: ref, day: 30, merchantHost: false);
+    return old.fixture(
+      ref: ref,
+      day: 30,
+      merchantHost: false,
+      cardLayout: compact ? 'compact' : 'editorial',
+    );
   }
 
   @override
@@ -81,6 +92,34 @@ Future<void> mount(
 }
 
 void main() {
+  testWidgets('compact card expands to editorial detail and returns', (
+    tester,
+  ) async {
+    await mount(tester, Feed()..compact = true);
+    expect(
+      find.byKey(const ValueKey('together-compact-future')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('together-card-future')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(TogetherActivityPage),
+        matching: find.byKey(const ValueKey('together-artwork-region-future')),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('together-close-detail')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('together-compact-future')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
   });

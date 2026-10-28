@@ -791,7 +791,7 @@ class TogetherAvailableRow extends StatelessWidget {
         const scale = 1.0;
         final inset = 20 * scale;
         final poster = party.detailPosters.firstOrNull;
-        final compact = party.cardLayout == 'compact';
+        final compact = party.cardLayout == 'compact' && !expanded;
         final summary = showAction
             ? party.participantCount < 10
             : party.displaysStoreBranding;
