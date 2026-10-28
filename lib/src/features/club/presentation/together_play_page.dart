@@ -874,48 +874,48 @@ class TogetherAvailableRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: textStyle(
-                    13,
+                    compact ? 10 : 13,
                     weight: FontWeight.w700,
                     color: ink.editorialSecondary,
-                    height: 1.3,
+                    height: compact ? 1.1 : 1.3,
                   ),
                 ),
-                SizedBox(height: 8 * scale),
+                SizedBox(height: (compact ? 1 : 8) * scale),
                 Text(
-                  togetherEditorialHeadline(
-                    party.theme,
-                    textStyle(24, weight: FontWeight.w700, height: 1.15),
-                    width,
-                    MediaQuery.textScalerOf(context),
-                    Directionality.of(context),
-                  ),
+                  compact
+                      ? party.theme
+                      : togetherEditorialHeadline(
+                          party.theme,
+                          textStyle(24, weight: FontWeight.w700, height: 1.15),
+                          width,
+                          MediaQuery.textScalerOf(context),
+                          Directionality.of(context),
+                        ),
                   semanticsLabel: party.theme,
                   key: ValueKey('together-editorial-title-${party.ref}'),
-                  maxLines: 2,
+                  maxLines: compact ? 1 : 2,
                   overflow: TextOverflow.ellipsis,
                   style: textStyle(
-                    24,
+                    compact ? 15 : 24,
                     color: ink.editorialPrimary,
                     weight: FontWeight.w700,
-                    height: 1.15,
+                    height: compact ? 1.1 : 1.15,
                   ),
                 ),
-                SizedBox(height: 8 * scale),
+                SizedBox(height: (compact ? 1 : 8) * scale),
                 Padding(
-                  padding: EdgeInsets.only(
-                    right: compact && showAction ? 84 : 0,
-                  ),
+                  padding: EdgeInsets.only(right: 0),
                   child: Text(
                     party.description.trim().isEmpty
                         ? party.place
                         : party.description.trim(),
                     key: ValueKey('together-editorial-subtitle-${party.ref}'),
-                    maxLines: 2,
+                    maxLines: compact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: textStyle(
-                      13,
+                      compact ? 10 : 13,
                       color: ink.editorialSecondary,
-                      height: 1.3,
+                      height: compact ? 1.1 : 1.3,
                     ),
                   ),
                 ),
@@ -954,15 +954,23 @@ class TogetherAvailableRow extends StatelessWidget {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
-                                minHeight: constraints.maxWidth / 2.24 - 30,
+                                minHeight: constraints.maxWidth / 2.24 - 24,
                               ),
                               child: Align(
                                 alignment: Alignment.bottomLeft,
                                 heightFactor: 1,
-                                child: editorialText(constraints.maxWidth - 40),
+                                child: SizedBox(
+                                  width:
+                                      constraints.maxWidth -
+                                      (showAction ? 124 : 40),
+                                  child: editorialText(
+                                    constraints.maxWidth -
+                                        (showAction ? 124 : 40),
+                                  ),
+                                ),
                               ),
                             ),
                           ),

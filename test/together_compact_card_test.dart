@@ -50,9 +50,9 @@ void main() {
       final subtitle = tester.widget<Text>(
         find.byKey(const ValueKey('together-editorial-subtitle-night')),
       );
-      expect(title.style!.fontSize, 24);
-      expect(kicker.style!.fontSize, 13);
-      expect(subtitle.style!.fontSize, 13);
+      expect(title.style!.fontSize, 15);
+      expect(kicker.style!.fontSize, 10);
+      expect(subtitle.style!.fontSize, 10);
       final pill = tester.widget<DecoratedBox>(
         find.byKey(const ValueKey('together-action-pill')),
       );
