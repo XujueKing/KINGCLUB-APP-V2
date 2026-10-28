@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/commerce/data/store_home_repository.dart';
 import 'package:kingclub/src/features/commerce/presentation/store_home_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_activity_page.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/core/design_system/king_localizations.dart';
 
@@ -33,6 +34,71 @@ Map<String, dynamic> data() => {
   'more': {'activities': false, 'vouchers': false, 'booking': false},
 };
 void main() {
+  testWidgets('store activity opens its large detail and returns to the card', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(402, 874);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final page = data();
+    page['activities'] = [
+      {
+        'ref': 'night',
+        'title': '周末微醺交友局',
+        'kicker': '本周五',
+        'subtitle': '同坐交友',
+        'startsAt': '2026-10-30T12:00:00.000Z',
+      },
+    ];
+    final repo = fixtures.Repository();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
+        home: StoreHomePage(
+          storeRef: 'store',
+          repository: StoreHomeRepository(call: (_, _) async => page),
+          onActivity: (context, ref, {required join, required onViewed}) async {
+            await openTogetherActivity(
+              context,
+              party: fixtures.fixture(),
+              repository: repo,
+              onJoin: (_) async {},
+              onAdmission: (_) async {},
+              onViewed: onViewed,
+              fromStore: true,
+              initialReadComplete: true,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('周末微醺交友局'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('周末微醺交友局'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(TogetherActivityPage),
+        matching: find.byKey(const ValueKey('together-artwork-region-night')),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('together-close-detail')));
+    await tester.pumpAndSettle();
+    expect(find.text('周末微醺交友局'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'store homepage follows measured web cover identity and footer geometry',
     (tester) async {

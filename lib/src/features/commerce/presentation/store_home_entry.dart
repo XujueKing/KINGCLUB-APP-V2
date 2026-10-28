@@ -14,41 +14,50 @@ Future<void> openMemberStore(BuildContext context, String storeRef) {
     MaterialPageRoute(
       builder: (_) => StoreHomePage(
         storeRef: storeRef,
-        onActivity: (storeContext, ref) async {
-          final party = await repository.detail(ref);
-          if (!storeContext.mounted) return;
-          await Navigator.of(storeContext).push<void>(
-            MaterialPageRoute(
-              builder: (_) => TogetherActivityPage(
-                party: party,
-                repository: repository,
-                initialReadComplete: true,
-                onViewed: () {},
-                onJoin: (value) => Navigator.of(storeContext).push<void>(
-                  MaterialPageRoute(
-                    builder: (_) => TogetherBookingPage(
-                      party: value,
-                      repository: repository,
-                    ),
-                  ),
-                ),
-                onAdmission: (value) async {
-                  final admission = await repository.admission(value.ref);
-                  if (!storeContext.mounted) return;
-                  await Navigator.of(storeContext).push<void>(
+        onActivity:
+            (storeContext, ref, {required join, required onViewed}) async {
+              final party = await repository.detail(ref);
+              if (!storeContext.mounted) return;
+              Future<void> joinParty(value) => Navigator.of(storeContext)
+                  .push<void>(
                     MaterialPageRoute(
-                      builder: (_) => TogetherTicketPage(
-                        party: admission,
-                        removalRepository: repository,
-                        reload: () => repository.admission(value.ref),
+                      builder: (_) => TogetherBookingPage(
+                        party: value,
+                        repository: repository,
                       ),
                     ),
                   );
-                },
-              ),
-            ),
-          );
-        },
+              Future<void> admission(value) async {
+                final admission = await repository.admission(value.ref);
+                if (!storeContext.mounted) return;
+                await Navigator.of(storeContext).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => TogetherTicketPage(
+                      party: admission,
+                      removalRepository: repository,
+                      reload: () => repository.admission(value.ref),
+                    ),
+                  ),
+                );
+              }
+
+              if (join) {
+                if (party.canAct && !party.hasAdmissionTicket) {
+                  await joinParty(party);
+                }
+                return;
+              }
+              await openTogetherActivity(
+                storeContext,
+                party: party,
+                repository: repository,
+                onJoin: joinParty,
+                onAdmission: admission,
+                onViewed: onViewed,
+                fromStore: true,
+                initialReadComplete: true,
+              );
+            },
       ),
     ),
   );

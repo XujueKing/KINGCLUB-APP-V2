@@ -774,12 +774,14 @@ class TogetherAvailableRow extends StatelessWidget {
     this.expanded = false,
     this.showAction = false,
     this.blurFooter = true,
+    this.compactPreview = false,
   });
   final TogetherParty party;
   final VoidCallback onTap;
   final VoidCallback? onAction, onStore;
   final String actionLabel;
   final bool showHeading, edgeInset, expanded, showAction, blurFooter;
+  final bool compactPreview;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -791,7 +793,8 @@ class TogetherAvailableRow extends StatelessWidget {
         const scale = 1.0;
         final inset = 20 * scale;
         final poster = party.detailPosters.firstOrNull;
-        final compact = party.cardLayout == 'compact' && !expanded;
+        final compact =
+            (party.cardLayout == 'compact' || compactPreview) && !expanded;
         final summary = showAction
             ? party.participantCount < 10
             : party.displaysStoreBranding;

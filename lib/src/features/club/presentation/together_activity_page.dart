@@ -26,22 +26,25 @@ Future<void> openTogetherStore(
       storeRef: party.storeRef,
       initialBrandName: party.cardStoreName,
       initialBranchName: party.cardStoreSubtitle,
-      onActivity: (storeContext, ref) async {
-        final next = await repository.detail(ref);
-        if (!storeContext.mounted) return;
-        await Navigator.of(storeContext).push<void>(
-          MaterialPageRoute(
-            builder: (_) => TogetherActivityPage(
+      onActivity:
+          (storeContext, ref, {required join, required onViewed}) async {
+            final next = await repository.detail(ref);
+            if (!storeContext.mounted) return;
+            if (join) {
+              if (next.canAct && !next.hasAdmissionTicket) await onJoin(next);
+              return;
+            }
+            await openTogetherActivity(
+              storeContext,
               party: next,
               repository: repository,
               onJoin: onJoin,
               onAdmission: onAdmission,
-              onViewed: () {},
+              onViewed: onViewed,
+              fromStore: true,
               initialReadComplete: true,
-            ),
-          ),
-        );
-      },
+            );
+          },
     ),
   ),
 );
@@ -76,6 +79,8 @@ Future<void> openTogetherActivity(
   required Future<void> Function(TogetherParty) onAdmission,
   required VoidCallback onViewed,
   ValueChanged<TogetherParty>? onLoaded,
+  bool fromStore = false,
+  bool initialReadComplete = false,
 }) async {
   final route = PageRouteBuilder<void>(
     barrierColor: Colors.transparent,
@@ -93,6 +98,8 @@ Future<void> openTogetherActivity(
       onAdmission: onAdmission,
       onViewed: onViewed,
       onLoaded: onLoaded,
+      fromStore: fromStore,
+      initialReadComplete: initialReadComplete,
     ),
     transitionsBuilder: (_, _, _, child) => child,
   );
@@ -111,6 +118,7 @@ class TogetherActivityPage extends StatefulWidget {
     this.onLoaded,
     this.entranceAnimation,
     this.initialReadComplete = false,
+    this.fromStore = false,
   });
   final TogetherParty party;
   final TogetherPlayRepository repository;
@@ -119,6 +127,7 @@ class TogetherActivityPage extends StatefulWidget {
   final ValueChanged<TogetherParty>? onLoaded;
   final Animation<double>? entranceAnimation;
   final bool initialReadComplete;
+  final bool fromStore;
   @override
   State<TogetherActivityPage> createState() => _TogetherActivityPageState();
 }
@@ -302,7 +311,7 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
 
     (source as Element).visitChildren(findRow);
     final sourceParty = sourceRow?.party ?? widget.party;
-    if (sourceParty.cardLayout == 'compact') {
+    if (sourceParty.cardLayout == 'compact' || widget.fromStore) {
       return AnimatedBuilder(
         animation: animation,
         builder: (_, _) {
@@ -320,6 +329,7 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
                     maxHeight: double.infinity,
                     child: TogetherAvailableRow(
                       party: sourceParty,
+                      compactPreview: true,
                       onTap: () {},
                       edgeInset: false,
                       showHeading: false,

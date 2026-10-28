@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,12 +7,19 @@ import '../../../core/design_system/king_components.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../club/presentation/reservation_components.dart';
 import '../../club/presentation/reservation_discovery_page.dart';
+import '../../club/presentation/together_activity_page.dart';
+import '../../club/presentation/together_activity_action.dart';
+import '../../club/presentation/together_artwork_contrast.dart';
+import '../../club/data/together_read_history.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../data/store_home_repository.dart';
 
 typedef StoreActivityOpen = Future<void> Function(
   BuildContext context,
-  String ref,
-);
+  String ref, {
+  required bool join,
+  required VoidCallback onViewed,
+});
 List<Map<String, dynamic>> _rows(Object? value) => (value as List? ?? [])
     .map((e) => Map<String, dynamic>.from(e as Map))
     .toList();
@@ -44,6 +53,8 @@ class _StoreHomeState extends State<StoreHomePage> {
   bool _loading = true, _saving = false;
   String? _error;
   String? _opening;
+  TogetherReadHistory? _readHistory;
+  final _seen = <String>{};
   final _tabs = const ['featured', 'activities', 'booking', 'about'];
   String t(String value) => reservationText(context, value);
   Map get _store => _data?['store'] as Map? ?? {};
@@ -54,6 +65,21 @@ class _StoreHomeState extends State<StoreHomePage> {
   void initState() {
     super.initState();
     _load();
+    _loadReadHistory();
+  }
+
+  Future<void> _loadReadHistory() async {
+    final session = await SecureSessionStore().readSession();
+    final account = (session?['account'] as Map?)?['userAccount'] as String?;
+    if (account == null) return;
+    final history = TogetherReadHistory(account);
+    final seen = await history.load();
+    if (mounted) {
+      setState(() {
+        _readHistory = history;
+        _seen.addAll(seen);
+      });
+    }
   }
 
   @override
@@ -123,11 +149,20 @@ class _StoreHomeState extends State<StoreHomePage> {
     await _load();
   }
 
-  Future<void> _openActivity(String ref) async {
+  Future<void> _openActivity(String ref, {bool join = false}) async {
     if (_opening != null || widget.onActivity == null) return;
     setState(() => _opening = ref);
     try {
-      await widget.onActivity!(context, ref);
+      await widget.onActivity!(
+        context,
+        ref,
+        join: join,
+        onViewed: () {
+          if (!mounted) return;
+          setState(() => _seen.add(ref));
+          unawaited(_readHistory?.mark(ref));
+        },
+      );
     } catch (_) {
       if (mounted) {
         _message(
@@ -768,82 +803,135 @@ class _StoreHomeState extends State<StoreHomePage> {
     return '${d.month}月${d.day}日 · ${['周一', '周二', '周三', '周四', '周五', '周六', '周日'][d.weekday - 1]}';
   }
 
-  Widget _activity(Map<String, dynamic> row) => Padding(
-    padding: const EdgeInsets.only(bottom: 11),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(17),
-      child: Material(
-        color: const Color(0xff301759),
-        child: InkWell(
-          onTap: widget.onActivity == null || _opening != null
-              ? null
-              : () => _openActivity(_text(row['ref'])),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 172),
-            child: Stack(
-              children: [
-                Positioned.fill(child: _image(row['image'])),
-                const Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xe61c0936), Color(0x551c0936)],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 66, 58, 22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _eventDate(row['startsAt']),
-                        style: _type(12, color: const Color(0xffd2bbef)),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _text(row['title']),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: _type(19, weight: FontWeight.w700, height: 1.3),
-                      ),
-                      if (_text(row['subtitle']).isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          _text(row['subtitle']),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: _type(12, color: const Color(0xffc6b5db)),
+  Widget _activity(Map<String, dynamic> row) {
+    final ref = _text(row['ref']);
+    final source = _text(row['image']);
+    final kicker = _text(row['kicker']).isEmpty
+        ? _eventDate(row['startsAt'])
+        : _text(row['kicker']);
+    final subtitle = _text(row['subtitle']).isNotEmpty
+        ? _text(row['subtitle'])
+        : switch (_text(row['feeMode'])) {
+            'aa' => 'AA 制',
+            'men_pay' => '男 A 女免',
+            'host_treat' => '发起者请客 · 全免',
+            _ => '',
+          };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: Hero(
+        tag: togetherActivityHeroTag(ref),
+        createRectTween: togetherActivityRectTween,
+        placeholderBuilder: togetherActivityPlaceholder,
+        child: TogetherArtworkContrast(
+          source: source.isEmpty ? null : source,
+          aspectRatio: 2.24,
+          textRegion: const Rect.fromLTRB(0, .55, .7, 1),
+          builder: (context, ink) {
+            final palette = TogetherFooterPalette(
+              ink.flatFooter,
+              translucent: true,
+            );
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Material(
+                color: ink.flatFooter,
+                child: InkWell(
+                  onTap: widget.onActivity == null || _opening != null
+                      ? null
+                      : () => _openActivity(ref),
+                  child: AspectRatio(
+                    aspectRatio: 2.24,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: _image(row['image'])),
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  ink.veil.withValues(alpha: .12),
+                                ],
+                                stops: const [.4, 1],
+                              ),
+                            ),
+                          ),
                         ),
+                        Positioned(
+                          left: 20,
+                          right: 104,
+                          bottom: 12,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                kicker,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _type(
+                                  10,
+                                  color: ink.editorialSecondary,
+                                  weight: FontWeight.w700,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _text(row['title']),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _type(
+                                  15,
+                                  color: ink.editorialPrimary,
+                                  weight: FontWeight.w700,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _type(
+                                  10,
+                                  color: ink.editorialSecondary,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (widget.onActivity != null)
+                          Positioned(
+                            right: 14,
+                            bottom: 7,
+                            child: TogetherActivityAction(
+                              palette: palette,
+                              label: _seen.contains(ref) ? '加入' : '查看',
+                              onPressed: _opening != null
+                                  ? null
+                                  : () => _openActivity(
+                                      ref,
+                                      join: _seen.contains(ref),
+                                    ),
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
-                ),
-                Positioned(
-                  right: 18,
-                  bottom: 22,
-                  child: Container(
-                    width: 31,
-                    height: 31,
-                    decoration: const BoxDecoration(
-                      color: Color(0x33ffffff),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.north_east,
-                      size: 17,
-                      color: Colors.white,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
-    ),
-  );
+    );
+  }
+
   Widget _voucher(Map<String, dynamic> row) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: _press(
