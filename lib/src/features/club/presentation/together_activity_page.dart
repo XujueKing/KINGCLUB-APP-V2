@@ -24,6 +24,8 @@ Future<void> openTogetherStore(
   MaterialPageRoute(
     builder: (_) => StoreHomePage(
       storeRef: party.storeRef,
+      initialBrandName: party.cardStoreName,
+      initialBranchName: party.cardStoreSubtitle,
       onActivity: (storeContext, ref) async {
         final next = await repository.detail(ref);
         if (!storeContext.mounted) return;

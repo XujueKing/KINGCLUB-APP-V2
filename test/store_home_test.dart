@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/commerce/data/store_home_repository.dart';
 import 'package:kingclub/src/features/commerce/presentation/store_home_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/design_system/king_localizations.dart';
 
 import 'together_play_test.dart' as fixtures;
 
@@ -31,6 +33,74 @@ Map<String, dynamic> data() => {
   'more': {'activities': false, 'vouchers': false, 'booking': false},
 };
 void main() {
+  testWidgets(
+    'store homepage follows measured web cover identity and footer geometry',
+    (tester) async {
+      tester.view.physicalSize = const Size(402, 874);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final page = data();
+      page['activities'] = [
+        {
+          'ref': 'party',
+          'title': '活动主题',
+          'startsAt': '2026-10-30T12:00:00.000Z',
+        },
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: KingTheme.dark,
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(402, 874),
+              padding: EdgeInsets.only(top: 44),
+            ),
+            child: StoreHomePage(
+              storeRef: 'store',
+              repository: StoreHomeRepository(call: (id, p) async => page),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('store-cover'))).height,
+        224,
+      );
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('store-identity'))).dy,
+        244,
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('store-logo'))),
+        const Size(58, 58),
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('store-brand')))
+            .style!
+            .fontSize,
+        24,
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('store-bottom'))).height,
+        83, // 48px buttons + 12/22px insets + 1px top border from web CSS
+      );
+      expect(tester.getTopLeft(find.text('本店活动')).dy, lessThan(625));
+      expect(tester.takeException(), isNull);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -650));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('store-tabs'))).dy,
+        96,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('store identity opens store without opening activity', (
     tester,
   ) async {
@@ -105,6 +175,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(calls, ['K261028002080']);
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('store-tabs')),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.ensureVisible(find.text('About'));
       await tester.tap(find.text('About'));
       await tester.pumpAndSettle();
