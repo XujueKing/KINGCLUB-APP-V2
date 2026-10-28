@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-10-28",
+  "status": "passed",
+  "screens": [
+    "recommend",
+    "store",
+    "activities",
+    "booking",
+    "about",
+    "discovery",
+    "empty",
+    "paused"
+  ],
+  "widths": [
+    320,
+    375,
+    402,
+    430
+  ],
+  "largeTextScale": 1.2,
+  "layoutCases": 48,
+  "checks": [
+    "logo navigation and propagation",
+    "activity/store return restoration",
+    "gallery missing images",
+    "local favourite state",
+    "date and guest selection",
+    "type filtering",
+    "preview confirmation/back",
+    "search empty state",
+    "no activities with booking",
+    "paused booking blocked",
+    "no horizontal overflow",
+    "no runtime errors"
+  ],
+  "screenshots": "Private local verification folder; not committed",
+  "scope": "Local UI prototype only; no APP/service/database changes"
+}
