@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../commerce/presentation/store_home_page.dart';
+
 import '../../../core/design_system/king_back_gesture.dart';
 import '../data/together_play.dart';
 import 'legacy_club_components.dart';
@@ -11,6 +13,36 @@ import 'together_seat_picker.dart';
 import '../data/secure_together_play_repository.dart';
 
 import 'package:uuid/uuid.dart';
+
+Future<void> openTogetherStore(
+  BuildContext context, {
+  required TogetherParty party,
+  required TogetherPlayRepository repository,
+  required Future<void> Function(TogetherParty) onJoin,
+  required Future<void> Function(TogetherParty) onAdmission,
+}) => Navigator.of(context).push<void>(
+  MaterialPageRoute(
+    builder: (_) => StoreHomePage(
+      storeRef: party.storeRef,
+      onActivity: (storeContext, ref) async {
+        final next = await repository.detail(ref);
+        if (!storeContext.mounted) return;
+        await Navigator.of(storeContext).push<void>(
+          MaterialPageRoute(
+            builder: (_) => TogetherActivityPage(
+              party: next,
+              repository: repository,
+              onJoin: onJoin,
+              onAdmission: onAdmission,
+              onViewed: () {},
+              initialReadComplete: true,
+            ),
+          ),
+        );
+      },
+    ),
+  ),
+);
 
 String togetherActivityHeroTag(String ref) => 'together-activity-$ref';
 
@@ -76,6 +108,7 @@ class TogetherActivityPage extends StatefulWidget {
     required this.onViewed,
     this.onLoaded,
     this.entranceAnimation,
+    this.initialReadComplete = false,
   });
   final TogetherParty party;
   final TogetherPlayRepository repository;
@@ -83,6 +116,7 @@ class TogetherActivityPage extends StatefulWidget {
   final VoidCallback onViewed;
   final ValueChanged<TogetherParty>? onLoaded;
   final Animation<double>? entranceAnimation;
+  final bool initialReadComplete;
   @override
   State<TogetherActivityPage> createState() => _TogetherActivityPageState();
 }
@@ -120,6 +154,15 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
     if (_started || !mounted) return;
     if (_routeAnimation != null && !_routeAnimation!.isCompleted) return;
     _started = true;
+    if (widget.initialReadComplete) {
+      setState(() {
+        _loaded = true;
+        _loading = false;
+        _marked = true;
+      });
+      widget.onViewed();
+      return;
+    }
     _load();
   }
 
@@ -311,6 +354,13 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
                     key: _cardBodyKey,
                     child: TogetherAvailableRow(
                       party: _party,
+                      onStore: () => openTogetherStore(
+                        context,
+                        party: _party,
+                        repository: widget.repository,
+                        onJoin: widget.onJoin,
+                        onAdmission: widget.onAdmission,
+                      ),
                       onTap: () {},
                       edgeInset: false,
                       showHeading: false,
@@ -345,6 +395,23 @@ class _TogetherActivityPageState extends State<TogetherActivityPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: TogetherStoreLogo(
+                                  party: _party,
+                                  size: 48,
+                                ),
+                                title: Text(_party.storeName),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => openTogetherStore(
+                                  context,
+                                  party: _party,
+                                  repository: widget.repository,
+                                  onJoin: widget.onJoin,
+                                  onAdmission: widget.onAdmission,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               if (_party.tables.isNotEmpty) ...[
                                 const Text(
                                   '活动卡座',

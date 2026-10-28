@@ -4,6 +4,7 @@ import '../../partners/presentation/partner_strings.dart';
 import '../../partners/data/partner_repository.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../commerce/presentation/member_orders_page.dart';
+import '../../commerce/presentation/store_home_entry.dart';
 import 'favourite_store_page.dart';
 import '../../home/data/home_content_repository.dart';
 import '../../home/data/home_city_catalog.dart';
@@ -1265,13 +1266,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
             itemCount: items.length,
             itemBuilder: (context, i) => FavouriteStoreCard(
               store: items[i] as Map,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => FavouriteStorePage(
-                    store: items[i] as Map,
-                    repository: _repository!,
-                  ),
-                ),
+              onTap: () => openMemberStore(
+                context,
+                (items[i] as Map)['storeRef'] as String,
               ),
             ),
           );

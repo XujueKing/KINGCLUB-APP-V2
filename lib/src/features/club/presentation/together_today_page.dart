@@ -554,6 +554,13 @@ class _TogetherTodayPageState extends State<TogetherTodayPage>
                                 ? '加入'
                                 : '查看',
                             onTap: () => _open(party),
+                            onStore: () => openTogetherStore(
+                              context,
+                              party: party,
+                              repository: widget.repository,
+                              onJoin: widget.onJoin,
+                              onAdmission: widget.onAdmission,
+                            ),
                             onAction:
                                 _seen.contains(party.ref) &&
                                     (!party.canAct || party.hasAdmissionTicket)

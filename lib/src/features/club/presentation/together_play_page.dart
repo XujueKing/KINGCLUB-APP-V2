@@ -767,6 +767,7 @@ class TogetherAvailableRow extends StatelessWidget {
     required this.party,
     required this.onTap,
     this.onAction,
+    this.onStore,
     this.actionLabel = '查看',
     this.showHeading = true,
     this.edgeInset = true,
@@ -776,7 +777,7 @@ class TogetherAvailableRow extends StatelessWidget {
   });
   final TogetherParty party;
   final VoidCallback onTap;
-  final VoidCallback? onAction;
+  final VoidCallback? onAction, onStore;
   final String actionLabel;
   final bool showHeading, edgeInset, expanded, showAction, blurFooter;
 
@@ -1019,101 +1020,116 @@ class TogetherAvailableRow extends StatelessWidget {
                                                   'together-summary-footer-${party.ref}',
                                                 ),
                                                 children: [
-                                                  ClipRRect(
-                                                    key: ValueKey(
-                                                      'together-summary-icon-${party.ref}',
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          10,
-                                                        ),
-                                                    child: showAction
-                                                        ? party.displaysStoreBranding
-                                                              ? TogetherStoreLogo(
-                                                                  party: party,
-                                                                  size: 48,
-                                                                )
-                                                              : TogetherMemberAvatar(
-                                                                  size: 48,
-                                                                  member: TogetherParticipant(
-                                                                    avatarBytes:
-                                                                        party
-                                                                            .displaysStoreBranding
-                                                                        ? null
-                                                                        : party
-                                                                              .hostAvatarBytes,
-                                                                    name:
-                                                                        party
-                                                                            .displaysStoreBranding
-                                                                        ? party
-                                                                              .storeName
-                                                                        : party
-                                                                              .hostName,
-                                                                    avatar:
-                                                                        party
-                                                                            .displaysStoreBranding
-                                                                        ? party
-                                                                              .storeLogo
-                                                                        : party
-                                                                              .hostAvatar,
-                                                                  ),
-                                                                )
-                                                        : artwork(size: 48),
-                                                  ),
-                                                  SizedBox(width: 10),
                                                   Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          showAction
-                                                              ? party
-                                                                    .cardPublisherName
-                                                              : party.theme,
-                                                          key: ValueKey(
-                                                            'together-summary-title-${party.ref}',
+                                                    child: InkWell(
+                                                      onTap:
+                                                          showAction &&
+                                                              party
+                                                                  .displaysStoreBranding
+                                                          ? onStore
+                                                          : null,
+                                                      child: Row(
+                                                        children: [
+                                                          ClipRRect(
+                                                            key: ValueKey(
+                                                              'together-summary-icon-${party.ref}',
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10,
+                                                                ),
+                                                            child: showAction
+                                                                ? party.displaysStoreBranding
+                                                                      ? TogetherStoreLogo(
+                                                                          party:
+                                                                              party,
+                                                                          size:
+                                                                              48,
+                                                                        )
+                                                                      : TogetherMemberAvatar(
+                                                                          size:
+                                                                              48,
+                                                                          member: TogetherParticipant(
+                                                                            avatarBytes:
+                                                                                party.displaysStoreBranding
+                                                                                ? null
+                                                                                : party.hostAvatarBytes,
+                                                                            name:
+                                                                                party.displaysStoreBranding
+                                                                                ? party.storeName
+                                                                                : party.hostName,
+                                                                            avatar:
+                                                                                party.displaysStoreBranding
+                                                                                ? party.storeLogo
+                                                                                : party.hostAvatar,
+                                                                          ),
+                                                                        )
+                                                                : artwork(
+                                                                    size: 48,
+                                                                  ),
                                                           ),
-                                                          maxLines: 2,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style:
-                                                              textStyle(
-                                                                16,
-                                                                color: footer
-                                                                    .primary,
-                                                                weight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                                height: 1.15,
-                                                              ).copyWith(
-                                                                fontSize: 16,
-                                                              ),
-                                                        ),
-                                                        SizedBox(height: 2),
-                                                        Text(
-                                                          showAction
-                                                              ? party
-                                                                    .cardPublisherSubtitle
-                                                              : party
-                                                                    .priceLabel,
-                                                          key: ValueKey(
-                                                            'together-summary-subtitle-${party.ref}',
+                                                          SizedBox(width: 10),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  showAction
+                                                                      ? party
+                                                                            .cardPublisherName
+                                                                      : party
+                                                                            .theme,
+                                                                  key: ValueKey(
+                                                                    'together-summary-title-${party.ref}',
+                                                                  ),
+                                                                  maxLines: 2,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style: textStyle(
+                                                                    16,
+                                                                    color: footer
+                                                                        .primary,
+                                                                    weight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    height:
+                                                                        1.15,
+                                                                  ).copyWith(fontSize: 16),
+                                                                ),
+                                                                SizedBox(
+                                                                  height: 2,
+                                                                ),
+                                                                Text(
+                                                                  showAction
+                                                                      ? party
+                                                                            .cardPublisherSubtitle
+                                                                      : party
+                                                                            .priceLabel,
+                                                                  key: ValueKey(
+                                                                    'together-summary-subtitle-${party.ref}',
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style:
+                                                                      textStyle(
+                                                                        13,
+                                                                        color: footer
+                                                                            .secondary,
+                                                                      ).copyWith(
+                                                                        fontSize:
+                                                                            13,
+                                                                      ),
+                                                                ),
+                                                              ],
+                                                            ),
                                                           ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style:
-                                                              textStyle(
-                                                                13,
-                                                                color: footer
-                                                                    .secondary,
-                                                              ).copyWith(
-                                                                fontSize: 13,
-                                                              ),
-                                                        ),
-                                                      ],
+                                                        ],
+                                                      ),
                                                     ),
                                                   ),
                                                   SizedBox(width: 10),
