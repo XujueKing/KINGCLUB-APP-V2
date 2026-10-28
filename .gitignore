@@ -65,6 +65,9 @@ app.*.map.json
 /docs/**/*.jpg
 /docs/**/*.jpeg
 /docs/**/*.webp
+
+# Required source artwork for the storefront prototype; verification screenshots stay ignored.
+!/docs/features/commerce/feature_storefront/2026-10-28-store-home/assets/halloween.jpg
 /docs/**/*.gif
 /docs/**/*.svg
 /docs/**/*.mp4
