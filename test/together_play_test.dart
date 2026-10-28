@@ -55,6 +55,8 @@ TogetherParty fixture({
   int? personalPriceMinor,
   String? cardKicker,
   String? cardPublisher,
+  String? cardStoreName,
+  String? cardStoreSubtitle,
 }) => TogetherParty(
   ref: ref,
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
@@ -71,6 +73,8 @@ TogetherParty fixture({
   hostName: '样例发起人',
   cardKicker: cardKicker,
   cardPublisher: cardPublisher,
+  cardStoreName: cardStoreName,
+  cardStoreSubtitle: cardStoreSubtitle,
   merchantHost: merchantHost,
   place: '样例活动地点',
   capacity: capacity,
@@ -834,7 +838,7 @@ void main() {
     final subtitle = tester.widget<Text>(
       find.byKey(const ValueKey('together-editorial-subtitle-night')),
     );
-    expect(kicker.style!.fontSize, closeTo(12, .1));
+    expect(kicker.style!.fontSize, closeTo(13, .1));
     expect(subtitle.style!.fontSize, closeTo(13, .1));
     expect(kicker.style!.color!.a, closeTo(.6, .01));
     expect(subtitle.style!.color!.a, closeTo(.6, .01));

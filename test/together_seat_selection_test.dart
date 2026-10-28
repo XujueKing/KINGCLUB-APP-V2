@@ -15,6 +15,8 @@ void main() {
         merchantHost: false,
         cardPublisher: 'store',
         cardKicker: '本周五 (10月30日)',
+        cardStoreName: 'KING CLUB',
+        cardStoreSubtitle: '天元区湖南工大店',
       );
       await tester.pumpWidget(
         MaterialApp(
@@ -31,10 +33,32 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(TogetherStoreLogo), findsOneWidget);
-      expect(find.text('样例门店'), findsOneWidget);
+      expect(find.text('KING CLUB'), findsOneWidget);
+      expect(find.text('天元区湖南工大店'), findsOneWidget);
+      expect(party.storeName, '样例门店');
       expect(find.text('样例发起人'), findsNothing);
       expect(find.text('本周五 (10月30日)'), findsOneWidget);
       expect(find.text(party.feeLabel), findsNothing);
+      final kicker = find.byKey(ValueKey('together-kicker-${party.ref}'));
+      final headline = find.byKey(
+        ValueKey('together-editorial-title-${party.ref}'),
+      );
+      final subtitle = find.byKey(
+        ValueKey('together-editorial-subtitle-${party.ref}'),
+      );
+      expect(
+        tester.widget<Text>(kicker).style!.fontSize,
+        tester.widget<Text>(subtitle).style!.fontSize,
+      );
+      expect(tester.widget<Text>(kicker).style!.fontWeight, FontWeight.w700);
+      expect(
+        tester.getTopLeft(headline).dy - tester.getBottomLeft(kicker).dy,
+        8,
+      );
+      expect(
+        tester.getTopLeft(subtitle).dy - tester.getBottomLeft(headline).dy,
+        8,
+      );
       expect(
         party
             .withAdmission(

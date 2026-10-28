@@ -318,6 +318,12 @@ class SecureTogetherPlayRepository
           ? r['hostIntroduction'] as String
           : '',
       cardKicker: r['cardKicker'] == null ? null : _text(r['cardKicker']),
+      cardStoreName: r['cardStoreName'] == null
+          ? null
+          : _text(r['cardStoreName']),
+      cardStoreSubtitle: r['cardStoreSubtitle'] == null
+          ? null
+          : _text(r['cardStoreSubtitle']),
       cardPublisher: r['cardPublisher'] == null
           ? null
           : (const ['store', 'member'].contains(r['cardPublisher'])

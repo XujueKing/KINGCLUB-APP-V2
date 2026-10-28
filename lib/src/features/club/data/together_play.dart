@@ -109,6 +109,8 @@ class TogetherParty {
     this.hostIntroduction = '',
     this.cardKicker,
     this.cardPublisher,
+    this.cardStoreName,
+    this.cardStoreSubtitle,
     this.tables = const [],
     this.myGender = TogetherGender.unspecified,
     this.seatChangePending = false,
@@ -150,7 +152,13 @@ class TogetherParty {
   final String? hostAvatar;
   final String hostIntroduction;
   final String? cardKicker, cardPublisher;
+  final String? cardStoreName, cardStoreSubtitle;
   bool get displaysStoreBranding => merchantHost || cardPublisher == 'store';
+  String get cardPublisherName =>
+      displaysStoreBranding ? cardStoreName ?? storeName : hostName;
+  String get cardPublisherSubtitle => displaysStoreBranding
+      ? cardStoreSubtitle ?? hostIntroduction
+      : hostIntroduction;
   final List<TogetherActivityTable> tables;
   final TogetherGender myGender;
   final bool seatChangePending;
@@ -197,6 +205,8 @@ class TogetherParty {
     hostIntroduction: hostIntroduction,
     cardKicker: cardKicker,
     cardPublisher: cardPublisher,
+    cardStoreName: cardStoreName,
+    cardStoreSubtitle: cardStoreSubtitle,
     tables: tables,
     myGender: myGender,
     seatChangePending: seatChangePending,

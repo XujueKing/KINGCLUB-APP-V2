@@ -941,12 +941,13 @@ class TogetherAvailableRow extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: textStyle(
-                                          12,
-                                          weight: FontWeight.w600,
+                                          13,
+                                          weight: FontWeight.w700,
                                           color: ink.editorialSecondary,
+                                          height: 1.3,
                                         ),
                                       ),
-                                      SizedBox(height: 4 * scale),
+                                      SizedBox(height: 8 * scale),
                                       Text(
                                         togetherEditorialHeadline(
                                           party.theme,
@@ -1068,11 +1069,8 @@ class TogetherAvailableRow extends StatelessWidget {
                                                       children: [
                                                         Text(
                                                           showAction
-                                                              ? (party.displaysStoreBranding
-                                                                    ? party
-                                                                          .storeName
-                                                                    : party
-                                                                          .hostName)
+                                                              ? party
+                                                                    .cardPublisherName
                                                               : party.theme,
                                                           key: ValueKey(
                                                             'together-summary-title-${party.ref}',
@@ -1097,7 +1095,7 @@ class TogetherAvailableRow extends StatelessWidget {
                                                         Text(
                                                           showAction
                                                               ? party
-                                                                    .hostIntroduction
+                                                                    .cardPublisherSubtitle
                                                               : party
                                                                     .priceLabel,
                                                           key: ValueKey(
