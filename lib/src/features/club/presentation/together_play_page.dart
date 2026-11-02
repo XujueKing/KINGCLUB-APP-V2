@@ -805,7 +805,7 @@ class TogetherAvailableRow extends StatelessWidget {
           builder: (context, ink) {
             final footer = TogetherFooterPalette(
               ink.flatFooter,
-              translucent: compact,
+              translucent: true,
             );
             final cupertino = CupertinoTheme.of(context).textTheme;
             final ios = Theme.of(context).platform == TargetPlatform.iOS;
